@@ -1,0 +1,10 @@
+name: primegate-publish
+steps:
+  - id: prepare
+    run: validate-metadata
+  - id: publish
+    run: publish-to-shelby
+  - id: finalize
+    run: finalize-primegate
+  - id: verify
+    run: run-install-tests

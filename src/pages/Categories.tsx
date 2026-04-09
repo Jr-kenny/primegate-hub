@@ -1,17 +1,31 @@
 import { Link } from "react-router-dom";
-import { Package, Terminal, Database, Workflow, Bot, FileText, Boxes } from "lucide-react";
+import { Archive, Box, Braces, Database, FileText, Image } from "lucide-react";
+import { useMemo } from "react";
 
-const categories = [
-  { label: "Tools", icon: Terminal, count: 1240 },
-  { label: "Prompts", icon: FileText, count: 890 },
-  { label: "Datasets", icon: Database, count: 560 },
-  { label: "Workflows", icon: Workflow, count: 340 },
-  { label: "Agent Components", icon: Bot, count: 720 },
-  { label: "Packages", icon: Package, count: 2100 },
-  { label: "Artifacts", icon: Boxes, count: 430 },
+import { useDiscoverPackages } from "@/hooks/usePrimeGateCatalog";
+import { formatPrimeGatePackageTypeLabel, type PrimeGatePackageType } from "@/lib/primegate-package-type";
+
+const categories: { type: PrimeGatePackageType; icon: typeof Archive }[] = [
+  { type: "archive", icon: Archive },
+  { type: "dataset", icon: Database },
+  { type: "document", icon: FileText },
+  { type: "image", icon: Image },
+  { type: "prompt", icon: FileText },
+  { type: "source", icon: Braces },
+  { type: "binary", icon: Box },
 ];
 
 export default function Categories() {
+  const { data: packages = [], isLoading } = useDiscoverPackages();
+  const counts = useMemo(() => {
+    const next: Record<string, number> = {};
+    for (const pkg of packages) {
+      const type = pkg.type?.toLowerCase() || "unknown";
+      next[type] = (next[type] ?? 0) + 1;
+    }
+    return next;
+  }, [packages]);
+
   return (
     <div className="container py-8 space-y-6">
       <div className="space-y-1">
@@ -20,19 +34,25 @@ export default function Categories() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {categories.map((cat) => (
+        {categories.map((cat) => {
+          const label = formatPrimeGatePackageTypeLabel(cat.type);
+          const count = counts[cat.type] ?? 0;
+          return (
           <Link
-            key={cat.label}
-            to={`/discover?type=${cat.label.toLowerCase()}`}
+            key={cat.type}
+            to={`/discover?type=${cat.type}`}
             className="flex items-center gap-4 p-4 rounded-lg border hover:bg-secondary/50 transition-colors group"
           >
             <cat.icon className="h-5 w-5 text-accent shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium group-hover:text-accent transition-colors">{cat.label}</p>
-              <p className="text-xs text-muted-foreground">{cat.count.toLocaleString()} assets</p>
+              <p className="text-sm font-medium group-hover:text-accent transition-colors">{label}</p>
+              <p className="text-xs text-muted-foreground">
+                {isLoading ? "Loading..." : `${count.toLocaleString()} assets`}
+              </p>
             </div>
           </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

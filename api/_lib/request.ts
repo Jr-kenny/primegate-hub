@@ -10,8 +10,28 @@ export function jsonResponse(
 ) {
   const headers = new Headers(init?.headers);
 
+  if (!headers.has("X-Content-Type-Options")) {
+    headers.set("X-Content-Type-Options", "nosniff");
+  }
+
+  if (!headers.has("X-Frame-Options")) {
+    headers.set("X-Frame-Options", "DENY");
+  }
+
+  if (!headers.has("Referrer-Policy")) {
+    headers.set("Referrer-Policy", "no-referrer");
+  }
+
+  if (!headers.has("Permissions-Policy")) {
+    headers.set("Permissions-Policy", "interest-cohort=()");
+  }
+
   if (cacheControl) {
     headers.set("Cache-Control", cacheControl);
+  }
+
+  if (!headers.has("Cache-Control") && headers.has("Set-Cookie")) {
+    headers.set("Cache-Control", "no-store");
   }
 
   return Response.json(body, {

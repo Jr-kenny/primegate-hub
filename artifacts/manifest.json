@@ -1,0 +1,184 @@
+{
+  "items": [
+    {
+      "title": "PrimeGate Release Gatekeeper Checklist",
+      "description": "Release gate checklist for publish intent, Shelby upload, and install validation.",
+      "packageSlug": "primegate-release-checklist",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.5",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-release-checklist.md",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Pricing Ladder Playbook",
+      "description": "Pricing ladder and upgrade rules for PrimeGate testnet releases.",
+      "packageSlug": "primegate-pricing-playbook",
+      "releaseVersion": "1.0.0",
+      "priceApt": "1.25",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-pricing-playbook.md",
+      "source": "generated"
+    },
+    {
+      "title": "Registry Integrity Audit Prompt",
+      "description": "Audit prompt for metadata completeness, price consistency, and manifest integrity.",
+      "packageSlug": "registry-audit",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.75",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\registry-audit.prompt",
+      "source": "generated"
+    },
+    {
+      "title": "Install Validation Checklist Prompt",
+      "description": "Prompt for verifying artifact hashes, manifest URLs, and install outcomes.",
+      "packageSlug": "install-validation",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.25",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\install-validation.prompt",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate CLI Quickstart Field Guide",
+      "description": "Field guide for running PrimeGate CLI search, resolve, and install commands.",
+      "packageSlug": "primegate-cli-starter",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-cli-starter.md",
+      "source": "generated"
+    },
+    {
+      "title": "Registry Metadata JSON Blueprint",
+      "description": "Blueprint JSON structure for registry metadata payloads.",
+      "packageSlug": "registry-metadata-template",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.4",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\registry-metadata-template.json",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Publish Workflow Spec",
+      "description": "Workflow specification for PrimeGate publish, finalize, and verify steps.",
+      "packageSlug": "primegate-workflow",
+      "releaseVersion": "1.0.0",
+      "priceApt": "1.5",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-workflow.yaml",
+      "source": "generated"
+    },
+    {
+      "title": "Synthetic Registry Sample Pack (CSV)",
+      "description": "Synthetic dataset of registry entries for analytics and demo testing.",
+      "packageSlug": "synthetic-registry-sample",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.1",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\synthetic-registry-sample.csv",
+      "source": "generated"
+    },
+    {
+      "title": "Synthetic Registry Sample Pack (JSONL)",
+      "description": "JSONL version of synthetic registry entries.",
+      "packageSlug": "synthetic-registry-sample",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.1",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\synthetic-registry-sample.jsonl",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Programmatic Install Helper (TS)",
+      "description": "TypeScript helper for resolving and installing PrimeGate artifacts programmatically.",
+      "packageSlug": "primegate-install-script",
+      "releaseVersion": "1.0.0",
+      "priceApt": "2.0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-install-script.ts",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Install Script (Python Pseudocode)",
+      "description": "Python pseudocode for resolving and installing PrimeGate artifacts.",
+      "packageSlug": "primegate-install-script",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-install-script.py",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Ops Field Notes",
+      "description": "Operational field notes for monitoring and alerting a registry.",
+      "packageSlug": "primegate-ops-notes",
+      "releaseVersion": "1.0.0",
+      "priceApt": "3.5",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-ops-notes.md",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Support Tiers Matrix",
+      "description": "Support tier matrix with response expectations.",
+      "packageSlug": "primegate-support-matrix",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0.9",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-support-matrix.md",
+      "source": "generated"
+    },
+    {
+      "title": "PrimeGate Publisher Onboarding Guide",
+      "description": "Onboarding steps for new PrimeGate publishers.",
+      "packageSlug": "primegate-onboarding-guide",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-onboarding-guide.md",
+      "source": "generated"
+    },
+    {
+      "title": "USGS Earthquakes (All Day, GeoJSON)",
+      "description": "Latest 24 hours of USGS earthquake events in GeoJSON format.",
+      "packageSlug": "usgs-earthquakes-all-day",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-day.geojson",
+      "source": "external"
+    },
+    {
+      "title": "USGS Earthquakes (All Day, CSV)",
+      "description": "Latest 24 hours of USGS earthquake events in CSV format.",
+      "packageSlug": "usgs-earthquakes-all-day",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-day.csv",
+      "source": "external"
+    },
+    {
+      "title": "USGS Earthquakes (All Week, GeoJSON)",
+      "description": "Latest 7 days of USGS earthquake events in GeoJSON format.",
+      "packageSlug": "usgs-earthquakes-all-week",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-week.geojson",
+      "source": "external"
+    },
+    {
+      "title": "USGS Earthquakes (All Week, CSV)",
+      "description": "Latest 7 days of USGS earthquake events in CSV format.",
+      "packageSlug": "usgs-earthquakes-all-week",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-week.csv",
+      "source": "external"
+    },
+    {
+      "title": "USGS Earthquakes (Significant, 30 Days)",
+      "description": "Significant earthquakes from the last 30 days in GeoJSON format.",
+      "packageSlug": "usgs-earthquakes-significant-month",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-significant-month.geojson",
+      "source": "external"
+    },
+    {
+      "title": "USGS Earthquakes (Significant, 30 Days CSV)",
+      "description": "Significant earthquakes from the last 30 days in CSV format.",
+      "packageSlug": "usgs-earthquakes-significant-month",
+      "releaseVersion": "1.0.0",
+      "priceApt": "0",
+      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-significant-month.csv",
+      "source": "external"
+    }
+  ]
+}

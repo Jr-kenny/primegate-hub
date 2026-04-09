@@ -3,6 +3,7 @@ import {
   clearPrimeGateSignMessageCookie,
   verifyWalletMessageSession,
 } from "../../_lib/auth";
+import { jsonResponse } from "../../_lib/request";
 
 type VerifyWalletMessagePayload = {
   address?: string;
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       !body.signature ||
       !body.walletAddress
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "Wallet message-sign verification payload is incomplete.",
         },
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
       walletAddress: body.walletAddress,
     });
 
-    return Response.json(
+    return jsonResponse(
       { data: session },
       {
         headers: {
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
       walletAddress: body?.walletAddress ?? null,
     });
 
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to verify wallet message-sign session.",
       },

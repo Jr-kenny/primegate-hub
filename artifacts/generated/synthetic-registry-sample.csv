@@ -1,0 +1,4 @@
+package_id,name,type,price,installs
+pg-001,Edge Monitor,source,0.5,42
+pg-002,Prompt Triage,prompt,0,188
+pg-003,Dataset Pack,dataset,1.2,12

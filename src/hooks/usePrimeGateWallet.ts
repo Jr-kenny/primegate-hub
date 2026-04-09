@@ -197,6 +197,7 @@ function usePrimeGateWalletState() {
   const [resolvedNetworkInfo, setResolvedNetworkInfo] = useState<NetworkInfo | null>(null);
   const [isRefreshingNetwork, setIsRefreshingNetwork] = useState(false);
   const pendingInteractiveSignInRef = useRef(false);
+  const autoSignInAttemptedRef = useRef<string | null>(null);
 
   const address = useMemo(
     () => (wallet.account?.address ? normalizeAptosAddress(wallet.account.address) : null),
@@ -290,6 +291,7 @@ function usePrimeGateWalletState() {
 
     if (!address) {
       setSession(null);
+      autoSignInAttemptedRef.current = null;
       return;
     }
 
@@ -485,6 +487,38 @@ function usePrimeGateWalletState() {
     }
   }, [address, createPrimeGateSession, wallet.account, wallet.connected, wallet.wallet?.name]);
 
+  const ensurePrimeGateSessionSilently = useCallback(async () => {
+    pendingInteractiveSignInRef.current = false;
+
+    if (!address) {
+      throw new Error("Connect your wallet before signing in to PrimeGate.");
+    }
+
+    if (!wallet.connected || !wallet.account) {
+      throw new Error("A connected wallet is required.");
+    }
+
+    const storedSession = getStoredPrimeGateSession();
+    if (storedSession && hasValidPrimeGateSession(address) && storedSession.walletAddress === address) {
+      setSession(storedSession);
+      return storedSession;
+    }
+
+    try {
+      return await runSessionAttempt(createPrimeGateSession);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setLastSessionDebug(getLastPrimeGateAuthDebug());
+      setLastSessionError(message);
+      console.error("PrimeGate sign-in failed", {
+        error,
+        walletAddress: address,
+        walletName: wallet.wallet?.name ?? null,
+      });
+      throw error;
+    }
+  }, [address, createPrimeGateSession, wallet.account, wallet.connected, wallet.wallet?.name]);
+
   useEffect(() => {
     if (!pendingInteractiveSignInRef.current) {
       return;
@@ -499,6 +533,25 @@ function usePrimeGateWalletState() {
       // ensurePrimeGateSession already records the error state.
     });
   }, [address, ensurePrimeGateSession, isVerifyingSession, isWrongNetwork, session, wallet.account, wallet.connected, wallet.isLoading]);
+
+  useEffect(() => {
+    if (!address) {
+      return;
+    }
+
+    if (!wallet.connected || !wallet.account || wallet.isLoading || session || isVerifyingSession || isWrongNetwork) {
+      return;
+    }
+
+    if (autoSignInAttemptedRef.current === address) {
+      return;
+    }
+
+    autoSignInAttemptedRef.current = address;
+    void ensurePrimeGateSessionSilently().catch(() => {
+      // Silent auto sign-in; errors are logged but not surfaced as toasts.
+    });
+  }, [address, ensurePrimeGateSessionSilently, isVerifyingSession, isWrongNetwork, session, wallet.account, wallet.connected, wallet.isLoading]);
 
   const connect = async (walletName?: string) => {
     setLastSessionError(null);

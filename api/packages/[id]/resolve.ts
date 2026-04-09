@@ -1,5 +1,6 @@
 import { AuthError } from "../../_lib/auth";
 import { getPackageResolution } from "../../_lib/package-resolution";
+import { jsonResponse } from "../../_lib/request";
 
 function getPackageId(request: Request) {
   const segments = new URL(request.url).pathname.split("/").filter(Boolean);
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
     const id = getPackageId(request);
 
     if (!id) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "Package id is required.",
         },
@@ -20,10 +21,10 @@ export async function GET(request: Request) {
     }
 
     const resolution = await getPackageResolution(request, id);
-    return Response.json({ data: resolution });
+    return jsonResponse({ data: resolution });
   } catch (error) {
     console.error("GET /api/packages/[id]/resolve failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to resolve package.",
       },

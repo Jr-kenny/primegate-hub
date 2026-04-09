@@ -2,6 +2,7 @@ import {
   clearPrimeGateSignMessageCookie,
   createPrimeGateSignMessageResponse,
 } from "../../_lib/auth";
+import { jsonResponse } from "../../_lib/request";
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
     const walletAddress = body.walletAddress?.trim();
 
     if (!walletAddress) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "walletAddress is required.",
         },
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
     const signMessageResponse = createPrimeGateSignMessageResponse(request, walletAddress);
 
-    return Response.json(
+    return jsonResponse(
       { data: signMessageResponse.payload },
       {
         headers: {
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("POST /api/auth/message/nonce failed", error);
 
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to issue PrimeGate message-sign challenge.",
       },

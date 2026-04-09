@@ -1,5 +1,6 @@
 import { AuthError, requireAuthenticatedWallet } from "../../_lib/auth";
 import { saveReview } from "../../_lib/catalog";
+import { jsonResponse } from "../../_lib/request";
 
 export async function POST(request: Request) {
   try {
@@ -7,7 +8,7 @@ export async function POST(request: Request) {
     const packageId = decodeURIComponent(segments.at(-2) ?? "");
 
     if (!packageId) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "Package id is required.",
         },
@@ -23,10 +24,10 @@ export async function POST(request: Request) {
       walletAddress: claims.walletAddress,
     });
 
-    return Response.json({ data: savedReview });
+    return jsonResponse({ data: savedReview });
   } catch (error) {
     console.error("POST /api/packages/[id]/reviews failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to save package review.",
       },

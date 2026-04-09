@@ -1,12 +1,13 @@
 import { listPurchases, savePurchase } from "./_lib/catalog";
 import { AuthError, requireAuthenticatedWallet } from "./_lib/auth";
+import { jsonResponse } from "./_lib/request";
 
 export async function GET(request: Request) {
   try {
     const walletAddress = new URL(request.url).searchParams.get("walletAddress")?.trim();
 
     if (!walletAddress) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "walletAddress is required.",
         },
@@ -16,10 +17,10 @@ export async function GET(request: Request) {
 
     requireAuthenticatedWallet(request, walletAddress);
     const purchases = await listPurchases(walletAddress);
-    return Response.json({ data: purchases });
+    return jsonResponse({ data: purchases });
   } catch (error) {
     console.error("GET /api/purchases failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to load purchases.",
       },
@@ -38,10 +39,10 @@ export async function POST(request: Request) {
         : null,
     );
     const savedPurchase = await savePurchase(purchase);
-    return Response.json({ data: savedPurchase });
+    return jsonResponse({ data: savedPurchase });
   } catch (error) {
     console.error("POST /api/purchases failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to save purchase.",
       },

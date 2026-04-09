@@ -1,11 +1,12 @@
 import { getDatabaseUrl, getSql } from "./_lib/database";
+import { jsonResponse } from "./_lib/request";
 
 export async function GET() {
   try {
     const sql = getSql();
 
     if (!sql) {
-      return Response.json({
+      return jsonResponse({
         data: {
           databaseConfigured: false,
           databaseReachable: false,
@@ -16,7 +17,7 @@ export async function GET() {
 
     await sql`select 1 as ok`;
 
-    return Response.json({
+    return jsonResponse({
       data: {
         databaseConfigured: Boolean(getDatabaseUrl()),
         databaseReachable: true,
@@ -25,7 +26,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET /api/health failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: "Health check failed.",
       },

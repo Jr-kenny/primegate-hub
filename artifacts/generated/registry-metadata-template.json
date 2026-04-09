@@ -1,0 +1,11 @@
+{
+  "title": "Package Title",
+  "description": "Short description",
+  "packageSlug": "publisher/package",
+  "releaseVersion": "1.0.0",
+  "priceApt": "0.5",
+  "artifact": {
+    "name": "bundle.zip",
+    "sizeBytes": 123456
+  }
+}

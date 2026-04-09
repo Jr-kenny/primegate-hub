@@ -1,5 +1,6 @@
 import { AuthError } from "../../_lib/auth";
 import { getPublishedPackageManifest } from "../../_lib/package-resolution";
+import { jsonResponse } from "../../_lib/request";
 
 function getPackageId(request: Request) {
   const segments = new URL(request.url).pathname.split("/").filter(Boolean);
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
     const id = getPackageId(request);
 
     if (!id) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "Package id is required.",
         },
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     const manifest = await getPublishedPackageManifest(request, id);
 
     if (!manifest) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "This package does not expose a downloadable published manifest.",
         },
@@ -30,10 +31,10 @@ export async function GET(request: Request) {
       );
     }
 
-    return Response.json({ data: manifest });
+    return jsonResponse({ data: manifest });
   } catch (error) {
     console.error("GET /api/packages/[id]/manifest failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to load package manifest.",
       },

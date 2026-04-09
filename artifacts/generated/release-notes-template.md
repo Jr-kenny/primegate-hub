@@ -1,0 +1,13 @@
+# Release Notes
+
+## Highlights
+- ...
+
+## Fixes
+- ...
+
+## Validation
+- ...
+
+## Support
+- Contact: ...

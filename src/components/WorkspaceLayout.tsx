@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 
@@ -13,18 +14,24 @@ export function WorkspaceLayout() {
         <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-2xl items-center justify-center">
           <div className="pg-fade-up w-full rounded-3xl border border-border/70 bg-card/70 p-8 text-center shadow-sm backdrop-blur">
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">Workspace</p>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-              {isReconnectingWallet ? "Reconnecting Wallet" : "Connect Wallet"}
-            </h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {isReconnectingWallet
-                ? "PrimeGate is restoring your previous wallet connection."
-                : "Connect an Aptos wallet to enter your PrimeGate workspace."}
-            </p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight">Connect Wallet</h1>
+            {isReconnectingWallet ? (
+              <div className="mt-4 flex items-center justify-center">
+                <Spinner className="h-5 w-5" />
+                <span className="sr-only">Reconnecting wallet</span>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Connect an Aptos wallet to enter your PrimeGate workspace.
+              </p>
+            )}
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               {isReconnectingWallet ? (
-                <p className="text-sm text-muted-foreground">Waiting for the wallet adapter to finish reconnecting...</p>
+                <div className="flex items-center justify-center">
+                  <Spinner className="h-4 w-4" />
+                  <span className="sr-only">Reconnecting wallet</span>
+                </div>
               ) : availableWallets.length > 0 ? (
                 availableWallets.map((wallet) => (
                   <Button

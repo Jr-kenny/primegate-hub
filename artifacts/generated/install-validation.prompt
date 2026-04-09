@@ -1,0 +1,11 @@
+Verify the install output for correctness.
+
+Inputs:
+- package id
+- manifest payload
+- downloaded artifact metadata
+
+Tasks:
+- ensure manifest URLs are reachable
+- ensure artifact hashes match
+- note any missing fields

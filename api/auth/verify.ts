@@ -3,6 +3,7 @@ import {
   clearPrimeGateSignInCookie,
   verifyWalletSession,
 } from "../_lib/auth";
+import { jsonResponse } from "../_lib/request";
 import type { SerializedAptosSignInOutput } from "@aptos-labs/siwa";
 
 export async function POST(request: Request) {
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     });
 
     if (!body.output) {
-      return Response.json(
+      return jsonResponse(
         {
           error: "Wallet verification payload is incomplete.",
         },
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
       walletAddress: body.output.input.address,
     });
 
-    return Response.json(
+    return jsonResponse(
       { data: session },
       {
         headers: {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
       walletAddress: body?.output?.input?.address ?? null,
     });
 
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to verify wallet session.",
       },

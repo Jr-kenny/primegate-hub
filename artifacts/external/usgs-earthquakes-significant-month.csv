@@ -1,0 +1,10 @@
+time,latitude,longitude,depth,mag,magType,nst,gap,dmin,rms,net,id,updated,place,type,horizontalError,depthError,magError,magNst,status,locationSource,magSource
+2026-04-02T08:41:25.520Z,37.115666666667,-122.1125,10.43,4.59,mw,173,67,0.03446,0.19,nc,nc75337442,2026-04-09T08:51:35.799Z,"1 km SE of Boulder Creek, CA",earthquake,0.16,0.32,,15,reviewed,nc,nc
+2026-04-01T22:48:13.172Z,1.1171,126.2965,35,7.4,mww,189,17,5.956,1.1,us,us6000slss,2026-04-04T13:01:27.878Z,"126 km WNW of Ternate, Indonesia",earthquake,3.81,2.801,0.033,89,reviewed,us,us
+2026-03-30T08:44:13.823Z,-15.3139,167.5616,121.28,7.3,mww,181,25,0.37,0.89,us,us7000s8q0,2026-03-31T09:13:22.522Z,"48 km ENE of Luganville, Vanuatu",earthquake,9.79,4.133,0.034,85,reviewed,us,us
+2026-03-26T14:18:50.947Z,39.4462,143.3717,9.513,6.5,mww,121,45,2.22,0.82,us,us7000s7u4,2026-03-27T14:47:28.298Z,"122 km E of Yamada, Japan",earthquake,6.84,4.17,0.038,66,reviewed,us,us
+2026-03-24T04:37:50.555Z,-18.6678,-175.5601,229.453,7.5,mww,147,21,5.349,0.93,us,us7000s789,2026-03-27T18:51:18.724Z,"166 km W of Neiafu, Tonga",earthquake,8.64,4.314,0.028,119,reviewed,us,us
+2026-03-22T15:30:37.033Z,-15.2263,-172.6832,10,6.3,mww,9,127,1.574,1.12,us,us6000sii1,2026-03-24T04:51:55.846Z,"144 km NE of Hihifo, Tonga",earthquake,4.95,1.948,0.06,27,reviewed,us,us
+2026-03-21T12:16:46.629Z,23.8601,-45.7987,10,6.6,mww,128,31,16.164,0.58,us,us6000si5l,2026-04-03T05:33:00.460Z,"northern Mid-Atlantic Ridge",earthquake,9.57,1.858,0.054,33,reviewed,us,us
+2026-03-20T00:22:02.120Z,-61.1525,-56.2683,4.869,6.6,mww,58,76,8.393,0.93,us,us6000shlp,2026-03-21T00:46:45.373Z,"South Shetland Islands",earthquake,8.26,4.144,0.059,28,reviewed,us,us
+2026-03-13T13:39:21.201Z,-28.6929,-71.4786,24,6.3,mww,82,133,0.603,0.87,us,us6000sg0y,2026-04-07T14:00:51.484Z,"71 km W of Vallenar, Chile",earthquake,4.56,1.849,0.047,44,reviewed,us,us

@@ -1,16 +1,17 @@
 import { ZodError } from "zod";
 import { AuthError, requireAuthenticatedWallet } from "./_lib/auth";
 import { createPublishIntent } from "./_lib/publishing";
+import { jsonResponse } from "./_lib/request";
 
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
     const claims = requireAuthenticatedWallet(request);
     const publishIntent = createPublishIntent(claims.walletAddress, payload);
-    return Response.json({ data: publishIntent });
+    return jsonResponse({ data: publishIntent });
   } catch (error) {
     console.error("POST /api/publish-intent failed", error);
-    return Response.json(
+    return jsonResponse(
       {
         error: error instanceof Error ? error.message : "Unable to create publish intent.",
       },
