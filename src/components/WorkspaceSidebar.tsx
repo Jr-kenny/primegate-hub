@@ -1,9 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  Compass, Download, ShoppingBag, Upload, Wallet, Settings,
-  Package, GitBranch, DollarSign, ChevronLeft
+  Compass,
+  Download,
+  ShoppingBag,
+  Upload,
+  Wallet,
+  Package,
+  GitBranch,
+  DollarSign,
+  ChevronLeft,
 } from "lucide-react";
 import { useState } from "react";
+
+import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
 
 const mainItems = [
   { label: "Explore", path: "/workspace", icon: Compass, end: true },
@@ -11,7 +20,6 @@ const mainItems = [
   { label: "Purchases", path: "/workspace/purchases", icon: ShoppingBag },
   { label: "Publishing", path: "/workspace/publishing", icon: Upload },
   { label: "Wallet", path: "/workspace/wallet", icon: Wallet },
-  { label: "Settings", path: "/workspace/settings", icon: Settings },
 ];
 
 const publisherItems = [
@@ -23,6 +31,7 @@ const publisherItems = [
 export function WorkspaceSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { isConnected, shortAddress } = usePrimeGateWallet();
 
   const isActive = (path: string, end?: boolean) => {
     if (end) return location.pathname === path;
@@ -40,10 +49,13 @@ export function WorkspaceSidebar() {
       <div className="flex items-center justify-between h-14 px-3 border-b border-sidebar-border">
         {!collapsed && (
           <Link to="/" className="flex items-center gap-2 font-semibold text-sm">
-            <span className="text-sidebar-primary">⌘</span> PrimeGate
+            <span className="text-sidebar-primary">âŒ˜</span> PrimeGate
           </Link>
         )}
-        <button onClick={() => setCollapsed(!collapsed)} className="text-sidebar-muted hover:text-sidebar-foreground p-1">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="text-sidebar-muted hover:text-sidebar-foreground p-1"
+        >
           <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
         </button>
       </div>
@@ -94,9 +106,9 @@ export function WorkspaceSidebar() {
         <div className="p-3 border-t border-sidebar-border">
           <div className="flex items-center gap-2 text-xs text-sidebar-muted">
             <div className="h-6 w-6 rounded-full bg-sidebar-accent flex items-center justify-center text-[10px] font-medium text-sidebar-foreground">
-              0x
+              {isConnected ? "0x" : "--"}
             </div>
-            <span className="truncate">0x1a2b…f9e8</span>
+            <span className="truncate">{shortAddress ?? "No wallet connected"}</span>
           </div>
         </div>
       )}

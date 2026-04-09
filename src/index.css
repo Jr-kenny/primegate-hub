@@ -89,3 +89,44 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
+
+@keyframes pg-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pg-shimmer {
+  0% {
+    transform: translateX(-140%);
+  }
+
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+@layer utilities {
+  .pg-fade-up {
+    animation: pg-fade-up 320ms ease-out both;
+  }
+
+  .pg-skeleton {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pg-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.32) 45%, transparent 100%);
+    animation: pg-shimmer 1.2s ease-in-out infinite;
+  }
+}

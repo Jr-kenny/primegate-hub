@@ -1,0 +1,2 @@
+-- PrimeGate no longer ships seeded demo catalog rows.
+-- Publish real packages through PrimeGate to populate the registry.
