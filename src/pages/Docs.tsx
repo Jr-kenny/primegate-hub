@@ -3,28 +3,30 @@ import { Book, Code, Link2, Plug, Terminal } from "lucide-react";
 const sections = [
   {
     icon: Book,
-    title: "Getting Started",
-    desc: "Search PrimeGate, resolve the package id, then follow the canonical manifest and download URLs.",
+    title: "Search",
+    desc: "Start with PrimeGate search to find package ids and canonical handles.",
+  },
+  {
+    icon: Link2,
+    title: "Resolve",
+    desc: "Resolve by package id to get PrimeGate manifest + download URLs.",
   },
   {
     icon: Terminal,
-    title: "CLI Flow",
-    desc: "The CLI should search and resolve through PrimeGate before downloading artifacts.",
-  },
-  {
-    icon: Code,
-    title: "TypeScript Client",
-    desc: "A thin PrimeGate client lives in this repo so SDK-style consumers can use the same public contract.",
+    title: "Install",
+    desc: "Use the CLI or SDK helper to download artifacts via PrimeGate.",
   },
   {
     icon: Plug,
-    title: "MCP Protocol",
-    desc: "MCP tools should resolve package ids through PrimeGate instead of talking to Shelby directly.",
+    title: "Automate",
+    desc: "MCP tools should resolve through PrimeGate instead of talking to Shelby directly.",
   },
 ] as const;
 
 const searchSnippet = `curl "https://primegate.io/api/search?q=prompt"`;
 const resolveSnippet = `curl "https://primegate.io/api/packages/<package-id>/resolve"`;
+const manifestSnippet = `curl "https://primegate.io/api/packages/<package-id>/manifest"`;
+const downloadSnippet = `curl "https://primegate.io/api/packages/<package-id>/download"`;
 const sdkSnippet = `import { createPrimeGateClient } from "@/lib/primegate-client";
 
 const client = createPrimeGateClient({
@@ -51,12 +53,22 @@ export default function Docs() {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Documentation</h1>
         <p className="text-sm text-muted-foreground">
-          Integrate PrimeGate from any surface. Search, resolution, manifests, and downloads should all flow through
-          PrimeGate as the canonical registry layer.
+          PrimeGate exposes a single canonical flow for search, resolve, manifests, and downloads. Use this flow
+          across web, CLI, SDK, and MCP so clients never bypass PrimeGate for Shelby data.
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="rounded-lg border p-4 space-y-3">
+        <h2 className="text-sm font-semibold">Quick Start (Canonical Flow)</h2>
+        <ol className="list-decimal pl-5 text-sm text-muted-foreground space-y-1">
+          <li>Search `/api/search` to discover package ids.</li>
+          <li>Resolve `/api/packages/:id/resolve` to get PrimeGate manifest + download URLs.</li>
+          <li>Fetch the manifest and download the artifact from PrimeGate URLs.</li>
+          <li>Install locally (CLI or SDK), or automate via MCP.</li>
+        </ol>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
         {sections.map((section) => (
           <div
             key={section.title}
@@ -71,30 +83,27 @@ export default function Docs() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-accent" />
-            <h2 className="text-sm font-semibold">HTTP Contract</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Every external client should start from search, then resolve by package id.
-          </p>
-          <div className="space-y-2">
-            <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{searchSnippet}</div>
-            <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{resolveSnippet}</div>
-          </div>
+      <div className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-accent" />
+          <h2 className="text-sm font-semibold">HTTP Contract</h2>
         </div>
-
-        <div className="rounded-lg border p-4 space-y-2">
-          <h2 className="text-sm font-semibold">CLI / MCP Shape</h2>
-          <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap">{cliSnippet}</div>
-          <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap">{mcpSnippet}</div>
+        <p className="text-sm text-muted-foreground">
+          Use the HTTP contract as the source of truth. Do not fetch Shelby blobs directly from clients.
+        </p>
+        <div className="space-y-2">
+          <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{searchSnippet}</div>
+          <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{resolveSnippet}</div>
+          <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{manifestSnippet}</div>
+          <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{downloadSnippet}</div>
         </div>
       </div>
 
       <div className="rounded-lg border p-4 space-y-3">
-        <h2 className="text-sm font-semibold">TypeScript Client</h2>
+        <div className="flex items-center gap-2">
+          <Code className="h-4 w-4 text-accent" />
+          <h2 className="text-sm font-semibold">TypeScript Client</h2>
+        </div>
         <p className="text-sm text-muted-foreground">
           The repo includes a thin `createPrimeGateClient` helper for search, package lookup, resolution,
           manifest fetches, and artifact downloads.
@@ -102,6 +111,22 @@ export default function Docs() {
         <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap break-all">
           {sdkSnippet}
         </div>
+      </div>
+
+      <div className="rounded-lg border p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4 text-accent" />
+          <h2 className="text-sm font-semibold">CLI Flow</h2>
+        </div>
+        <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap">{cliSnippet}</div>
+      </div>
+
+      <div className="rounded-lg border p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Plug className="h-4 w-4 text-accent" />
+          <h2 className="text-sm font-semibold">MCP Flow</h2>
+        </div>
+        <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap">{mcpSnippet}</div>
       </div>
     </div>
   );
