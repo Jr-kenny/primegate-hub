@@ -1,7 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,6 +9,46 @@ export default defineConfig(({ mode }) => {
 
   return {
     assetsInclude: ["**/*.wasm"],
+    build: {
+      chunkSizeWarningLimit: 650,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) {
+              return undefined;
+            }
+
+            if (id.includes("@shelby-protocol")) {
+              return "shelby";
+            }
+
+            if (id.includes("@aptos-labs/siwa")) {
+              return "aptos-siwa";
+            }
+
+            if (
+              id.includes("@aptos-connect") ||
+              id.includes("@identity-connect") ||
+              id.includes("@aptos-labs/wallet-adapter") ||
+              id.includes("@aptos-labs/wallet-standard")
+            ) {
+              return "aptos-wallet";
+            }
+
+            const tsSdkModuleMatch = id.match(/@aptos-labs[\\/]+ts-sdk[\\/]dist[\\/]esm[\\/](.+)\.mjs$/);
+            if (tsSdkModuleMatch) {
+              return `aptos-sdk-${tsSdkModuleMatch[1].replace(/[\\/]/g, "-")}`;
+            }
+
+            if (id.includes("@aptos-labs/ts-sdk")) {
+              return "aptos-sdk";
+            }
+
+            return undefined;
+          },
+        },
+      },
+    },
     optimizeDeps: {
       exclude: [
         "@shelby-protocol/react",
@@ -32,7 +71,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    plugins: [react()],
     define: {
       "process.env": {},
     },

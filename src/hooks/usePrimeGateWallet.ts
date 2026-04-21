@@ -11,10 +11,9 @@ import {
 } from "react";
 import { groupAndSortWallets, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { serializeSignInOutput } from "@aptos-labs/siwa";
-import { Network } from "@aptos-labs/ts-sdk";
 import type { NetworkInfo } from "@aptos-labs/wallet-adapter-react";
 
-import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3";
+import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
 import { toast } from "@/hooks/use-toast";
 import {
   getLastPrimeGateAuthDebug,
@@ -33,6 +32,8 @@ import {
   type PrimeGateSession,
 } from "@/services/auth";
 import { connectWallet, disconnectWallet } from "@/services/wallet";
+
+type PrimeGateNetworkName = "devnet" | "local" | "mainnet" | "testnet";
 
 function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -132,36 +133,36 @@ function hasSiwaFeature(wallet: { features?: Record<string, unknown> } | null | 
 
 function extractNamedWalletNetwork(
   network: { name?: string | null; chainId?: number | string | null; url?: string | null } | null,
-) {
+): PrimeGateNetworkName | null {
   if (!network) {
     return null;
   }
 
   const normalizedName = network.name?.trim().toLowerCase();
   if (normalizedName) {
-    if (normalizedName === Network.TESTNET || normalizedName.endsWith(`:${Network.TESTNET}`)) {
-      return Network.TESTNET;
+    if (normalizedName === "testnet" || normalizedName.endsWith(":testnet")) {
+      return "testnet";
     }
 
-    if (normalizedName === Network.MAINNET || normalizedName.endsWith(`:${Network.MAINNET}`)) {
-      return Network.MAINNET;
+    if (normalizedName === "mainnet" || normalizedName.endsWith(":mainnet")) {
+      return "mainnet";
     }
 
-    if (normalizedName === Network.DEVNET || normalizedName.endsWith(`:${Network.DEVNET}`)) {
-      return Network.DEVNET;
+    if (normalizedName === "devnet" || normalizedName.endsWith(":devnet")) {
+      return "devnet";
     }
 
-    if (normalizedName === Network.LOCAL || normalizedName.endsWith(`:${Network.LOCAL}`)) {
-      return Network.LOCAL;
+    if (normalizedName === "local" || normalizedName.endsWith(":local")) {
+      return "local";
     }
   }
 
   if (network.chainId === 2 || network.chainId === "2" || network.chainId === "0x2") {
-    return Network.TESTNET;
+    return "testnet";
   }
 
   if (network.chainId === 1 || network.chainId === "1" || network.chainId === "0x1") {
-    return Network.MAINNET;
+    return "mainnet";
   }
 
   return null;

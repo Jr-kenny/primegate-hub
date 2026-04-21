@@ -35,3 +35,4 @@ Files currently covered by this rule include:
 - `src/config/web3.ts`
 - `src/hooks/useShelbyPublish.ts`
 - any future Shelby wallet, blob, registry sync, or publishing logic
+stop writing project instructions on the frontend. don't be a bastard. instructions,suggestion,and details i missed should be relayed to me not written on the frontend 

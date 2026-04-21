@@ -1,9 +1,8 @@
-import { AccountAddress } from "@aptos-labs/ts-sdk";
-
 import { PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS } from "@/lib/primegate-registry-contract";
+import { normalizeAptosAddress } from "@/lib/aptos-address";
 
 function normalizeAddress(address: string) {
-  return AccountAddress.from(address).toStringLong().toLowerCase();
+  return normalizeAptosAddress(address);
 }
 
 export const PRIMEGATE_REGISTRY_CONTRACT_ADDRESS = normalizeAddress(

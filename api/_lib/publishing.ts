@@ -41,7 +41,7 @@ const publishIntentClaimsSchema = createPublishIntentSchema.extend({
   ownerAddress: z.string().min(1),
 });
 
-const publishedManifestSchema = z.object({
+const strictPublishedManifestSchema = z.object({
   assetBlobName: z.string().min(1),
   assetSha256: z.string().regex(/^0x[a-f0-9]{64}$/),
   createdAt: z.string().datetime(),
@@ -61,7 +61,34 @@ const publishedManifestSchema = z.object({
   version: z.literal(PRIMEGATE_PUBLISH_VERSION),
 });
 
-export type PrimeGatePublishedManifest = z.infer<typeof publishedManifestSchema>;
+const legacyPublishedManifestSchema = z
+  .object({
+    assetBlobName: z.string().min(1),
+    assetSha256: z.string().regex(/^0x[a-f0-9]{64}$/),
+    createdAt: z.string().datetime(),
+    description: z.string().min(1),
+    manifestBlobName: z.string().min(1),
+    mimeType: z.string().min(1),
+    originalFileName: z.string().min(1),
+    ownerAddress: z.string().min(1),
+    price: z.union([z.number(), z.string().min(1)]),
+    publishAttestation: z.string().min(1),
+    publishIntentId: z.string().uuid(),
+    sizeBytes: z.number().int().min(0),
+    source: z.literal(PRIMEGATE_PUBLISH_SOURCE),
+    title: z.string().min(1),
+    version: z.literal(PRIMEGATE_PUBLISH_VERSION),
+  })
+  .passthrough();
+
+export type PrimeGatePublishedManifest = Omit<
+  z.infer<typeof strictPublishedManifestSchema>,
+  "packageSlug" | "releaseVersion"
+> & {
+  packageSlug: string | null;
+  price?: number | string;
+  releaseVersion: string | null;
+};
 
 function getPublishSecret() {
   const secret =
@@ -141,11 +168,28 @@ async function readShelbyBlobBytes(account: string, blobName: string) {
 
 export async function readPublishedManifest(ownerAddress: string, manifestBlobName: string) {
   const manifestBytes = await readShelbyBlobBytes(ownerAddress, manifestBlobName);
+  let rawManifest: unknown;
 
   try {
-    return publishedManifestSchema.parse(JSON.parse(manifestBytes.toString("utf8")));
+    rawManifest = JSON.parse(manifestBytes.toString("utf8"));
   } catch {
     throw new AuthError("Published manifest is invalid.", 400);
+  }
+
+  try {
+    return strictPublishedManifestSchema.parse(rawManifest);
+  } catch {
+    try {
+      const legacyManifest = legacyPublishedManifestSchema.parse(rawManifest);
+      return {
+        ...legacyManifest,
+        packageSlug: null,
+        priceApt: normalizeAptAmount(String(legacyManifest.price)),
+        releaseVersion: null,
+      };
+    } catch {
+      throw new AuthError("Published manifest is invalid.", 400);
+    }
   }
 }
 
@@ -159,8 +203,16 @@ function sha256Hex(value: Uint8Array) {
 
 function assertIntentMatchesManifest(
   claims: z.infer<typeof publishIntentClaimsSchema>,
-  manifest: z.infer<typeof publishedManifestSchema>,
+  manifest: PrimeGatePublishedManifest,
 ) {
+  if (!manifest.packageSlug) {
+    throw new AuthError("Published manifest package slug is missing.", 400);
+  }
+
+  if (!manifest.releaseVersion) {
+    throw new AuthError("Published manifest release version is missing.", 400);
+  }
+
   if (normalizeWalletAddress(manifest.ownerAddress) !== claims.ownerAddress) {
     throw new AuthError("Published manifest owner does not match the PrimeGate intent.", 400);
   }

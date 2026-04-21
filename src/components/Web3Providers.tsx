@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { AptosWalletAdapterProvider, useWallet } from "@aptos-labs/wallet-adapter-react";
 
-import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3";
+import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
 import { setWalletAdapter } from "@/services/wallet";
 
 const WalletBridge = ({ children }: { children: ReactNode }) => {

@@ -3,13 +3,12 @@ import { useEncodeBlobs, useRegisterCommitments } from "@shelby-protocol/react";
 
 import { PRIMEGATE_REGISTRY_CONTRACT_ADDRESS } from "@/config/primegate-registry";
 import {
-  aptosClient,
   PRIMEGATE_DEFAULT_BLOB_TTL_MICROS,
   PRIMEGATE_SHELBY_API_KEY,
-  shelbyClient,
-} from "@/config/web3";
+} from "@/config/web3-constants";
+import { shelbyClient } from "@/config/web3";
 import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
-import { getPrimeGateTransactionOptions } from "@/lib/aptos-gas";
+import { getPrimeGateTransactionOptions, waitForPrimeGateTransaction } from "@/lib/aptos-client";
 import { normalizeAptAmount, parseAptAmountToOctas } from "@/lib/aptos-amount";
 import {
   normalizePrimeGatePackageSlug,
@@ -152,7 +151,7 @@ export function useShelbyPublish() {
       };
 
       const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
-      const shelbyBuildOptions = await getPrimeGateTransactionOptions(aptosClient, 50_000);
+      const shelbyBuildOptions = await getPrimeGateTransactionOptions(50_000);
       const shelbyExpirationMicros = Date.now() * 1000 + PRIMEGATE_DEFAULT_BLOB_TTL_MICROS;
       const shelbyBlobs = [
         {
@@ -189,9 +188,7 @@ export function useShelbyPublish() {
         },
       });
 
-      await aptosClient.waitForTransaction({
-        transactionHash: pendingRegisterBlobTransaction.hash,
-      });
+      await waitForPrimeGateTransaction(pendingRegisterBlobTransaction.hash);
 
       setIsUploadingToShelbyRpc(true);
       try {
@@ -213,7 +210,7 @@ export function useShelbyPublish() {
       });
 
       if (normalizedPriceApt !== "0") {
-        const listingOptions = await getPrimeGateTransactionOptions(aptosClient, 10_000);
+        const listingOptions = await getPrimeGateTransactionOptions(10_000);
         const listingTransaction = await signAndSubmitTransaction({
           data: {
             function: getPrimeGateRegistryFunctionId(PRIMEGATE_REGISTRY_CONTRACT_ADDRESS, "upsert_listing"),
@@ -226,7 +223,7 @@ export function useShelbyPublish() {
           sender: account.address,
         });
 
-        await aptosClient.waitForTransaction({ transactionHash: listingTransaction.hash });
+        await waitForPrimeGateTransaction(listingTransaction.hash);
       }
 
       return {

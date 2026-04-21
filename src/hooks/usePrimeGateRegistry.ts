@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
-import { aptosClient } from "@/config/web3";
 import { PRIMEGATE_REGISTRY_CONTRACT_ADDRESS } from "@/config/primegate-registry";
 import type { RegistryPackage, RegistryPackageResolution } from "@/lib/registry-data";
-import { getPrimeGateTransactionOptions } from "@/lib/aptos-gas";
+import { getPrimeGateTransactionOptions } from "@/lib/aptos-client";
 import {
   encodePrimeGatePackageId,
   getPrimeGateRegistryFunctionId,
@@ -227,7 +226,7 @@ export function usePrimeGateRegistry() {
       throw new Error("On-chain APT checkout is only supported for PrimeGate-published artifacts right now.");
     }
 
-    const purchaseOptions = await getPrimeGateTransactionOptions(aptosClient, 10_000);
+    const purchaseOptions = await getPrimeGateTransactionOptions(10_000);
     const transaction = await signAndSubmitTransaction({
       sender: nextWalletAddress,
       data: {

@@ -6,7 +6,7 @@ import type {
   WalletContextState,
 } from "@aptos-labs/wallet-adapter-react";
 
-import { PRIMEGATE_WALLET_NAME } from "@/config/web3";
+import { PRIMEGATE_WALLET_NAME } from "@/config/web3-constants";
 import { normalizeAptosAddress } from "@/services/aptos";
 
 type WalletServiceAdapter = Pick<
