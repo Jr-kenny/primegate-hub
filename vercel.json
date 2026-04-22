@@ -1,0 +1,80 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/auth/message/nonce",
+      "destination": "/api/auth-router?route=message-nonce"
+    },
+    {
+      "source": "/api/auth/message/verify",
+      "destination": "/api/auth-router?route=message-verify"
+    },
+    {
+      "source": "/api/auth/nonce",
+      "destination": "/api/auth-router?route=nonce"
+    },
+    {
+      "source": "/api/auth/verify",
+      "destination": "/api/auth-router?route=verify"
+    },
+    {
+      "source": "/api/entitlements",
+      "destination": "/api/account-router?route=entitlements"
+    },
+    {
+      "source": "/api/installs",
+      "destination": "/api/account-router?route=installs"
+    },
+    {
+      "source": "/api/purchases",
+      "destination": "/api/account-router?route=purchases"
+    },
+    {
+      "source": "/api/sales",
+      "destination": "/api/account-router?route=sales"
+    },
+    {
+      "source": "/api/publish-intent",
+      "destination": "/api/publishing-router?route=publish-intent"
+    },
+    {
+      "source": "/api/published-assets",
+      "destination": "/api/publishing-router?route=published-assets"
+    },
+    {
+      "source": "/api/search/publishers",
+      "destination": "/api/search-router?route=publishers"
+    },
+    {
+      "source": "/api/search",
+      "destination": "/api/search-router?route=packages"
+    },
+    {
+      "source": "/api/publishers/:id",
+      "destination": "/api/publishers-router?id=:id"
+    },
+    {
+      "source": "/api/packages/:id/download",
+      "destination": "/api/packages-router?route=download&id=:id"
+    },
+    {
+      "source": "/api/packages/:id/manifest",
+      "destination": "/api/packages-router?route=manifest&id=:id"
+    },
+    {
+      "source": "/api/packages/:id/resolve",
+      "destination": "/api/packages-router?route=resolve&id=:id"
+    },
+    {
+      "source": "/api/packages/:id/reviews",
+      "destination": "/api/packages-router?route=reviews&id=:id"
+    },
+    {
+      "source": "/api/packages/:id",
+      "destination": "/api/packages-router?route=detail&id=:id"
+    },
+    {
+      "source": "/api/packages",
+      "destination": "/api/packages-router?route=index"
+    }
+  ]
+}

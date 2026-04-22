@@ -25,7 +25,6 @@ import {
   verifySignInSignature,
   type SerializedAptosSignInOutput,
 } from "@aptos-labs/siwa";
-import type { AptosSignInInput } from "@aptos-labs/wallet-standard";
 
 const PRIMEGATE_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const PRIMEGATE_SIGN_IN_TTL_MS = 1000 * 60 * 5;
@@ -59,6 +58,21 @@ type SessionClaims = {
   keyType: string;
   publicKeyHex: string;
   walletAddress: string;
+};
+
+type AptosSignInInput = {
+  address?: string;
+  chainId?: string;
+  domain?: string;
+  expirationTime?: string;
+  issuedAt?: string;
+  nonce?: string;
+  notBefore?: string;
+  requestId?: string;
+  resources?: string[];
+  statement?: string;
+  uri?: string;
+  version?: string;
 };
 
 type PrimeGateSignInInput = AptosSignInInput & {
@@ -405,6 +419,10 @@ function getSignMessageInputCookie(request: Request) {
   return parsed;
 }
 
+function getVerificationErrorMessage(result: { valid: boolean; errors?: string[] }) {
+  return result.valid ? "Verification failed." : result.errors?.join(", ") || "Verification failed.";
+}
+
 export function createPrimeGateSignInResponse(request: Request, walletAddress: string) {
   const { expiresAt, input } = createPrimeGateSignInInput(request, walletAddress);
   const secure = getCookieSecurity(request);
@@ -495,10 +513,13 @@ export async function verifyWalletSession(
 ) {
   const expectedInput = getSignInInputCookie(request);
   const output = await deserializeSignInOutput(serializedOutput);
+  const siwaOptions = {
+    aptos: aptos as unknown as Parameters<typeof verifySignInMessage>[1]["aptos"],
+  };
 
-  const signatureVerification = await verifySignInSignature(output, { aptos });
+  const signatureVerification = await verifySignInSignature(output, siwaOptions);
   if (!signatureVerification.valid) {
-    throw new AuthError(signatureVerification.errors.join(", "));
+    throw new AuthError(getVerificationErrorMessage(signatureVerification));
   }
 
   const messageVerification = await verifySignInMessage(
@@ -507,11 +528,11 @@ export async function verifyWalletSession(
       input: output.input,
       publicKey: output.publicKey,
     },
-    { aptos },
+    siwaOptions,
   );
 
   if (!messageVerification.valid) {
-    throw new AuthError(messageVerification.errors.join(", "));
+    throw new AuthError(getVerificationErrorMessage(messageVerification));
   }
 
   const walletAddress = normalizeWalletAddress(output.input.address);

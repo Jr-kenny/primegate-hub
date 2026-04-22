@@ -40,6 +40,30 @@ export function jsonResponse(
   });
 }
 
+export function errorResponse(
+  message: string,
+  status: number,
+  init?: Omit<ResponseInit, "status">,
+) {
+  return jsonResponse(
+    {
+      error: message,
+    },
+    {
+      ...init,
+      status,
+    },
+  );
+}
+
+export function methodNotAllowed(methods: string[]) {
+  return errorResponse("Method not allowed.", 405, {
+    headers: {
+      Allow: methods.join(", "),
+    },
+  });
+}
+
 export function getRequestOrigin(request: Request) {
   const originHeader = request.headers.get("origin")?.trim();
   if (originHeader) {

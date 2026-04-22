@@ -1,5 +1,5 @@
-import { getDatabaseUrl, getSql } from "./_lib/database";
-import { jsonResponse } from "./_lib/request";
+import { getDatabaseUrl, getSql } from "./_lib/database.js";
+import { jsonResponse } from "./_lib/request.js";
 
 export async function GET() {
   try {

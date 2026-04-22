@@ -1,21 +1,21 @@
-import type { RegistryPackageResolution } from "../../src/lib/registry-data";
-import { getAuthenticatedWallet } from "./auth";
+import type { RegistryPackageResolution } from "../../src/lib/registry-data.js";
+import { getAuthenticatedWallet } from "./auth.js";
 import {
   getCatalogPurchaseTarget,
   getPackage,
   getPublishedAssetById,
   listEntitlements,
-} from "./catalog";
+} from "./catalog.js";
 import {
   readPublishedAssetBytes,
   readPublishedManifest,
   type PrimeGatePublishedManifest,
-} from "./publishing";
+} from "./publishing.js";
 import {
   getPrimeGateRegistryListing,
   hasPrimeGateRegistryPurchase,
-} from "./primegate-registry";
-import { toAbsoluteUrl } from "./request";
+} from "./primegate-registry.js";
+import { toAbsoluteUrl } from "./request.js";
 
 function buildResolvePath(packageId: string) {
   return `/api/packages/${encodeURIComponent(packageId)}/resolve`;
@@ -91,6 +91,8 @@ export async function getPackageResolution(
   const install = buildInstallSnippets(pkg.id, publishedAsset ? pkg.id : pkg.name);
   const publiclyAccessible = isFreePrice(pkg.price);
   const purchaseTarget = await getCatalogPurchaseTarget(packageId);
+  const directPayment =
+    purchaseTarget && "payment" in purchaseTarget ? purchaseTarget.payment ?? null : null;
   const resolvePath = buildResolvePath(pkg.id);
   const resolveUrl = toAbsoluteUrl(request, resolvePath);
   const payment =
@@ -104,13 +106,13 @@ export async function getPackageResolution(
         )
       : purchaseTarget?.kind === "published-asset"
         ? null
-        : purchaseTarget?.payment && purchaseTarget.payment.amountOctas !== "0"
+        : directPayment && directPayment.amountOctas !== "0"
           ? {
-              amountApt: purchaseTarget.payment.amountApt,
-              amountOctas: purchaseTarget.payment.amountOctas,
+              amountApt: directPayment.amountApt,
+              amountOctas: directPayment.amountOctas,
               currency: "APT" as const,
               network: "testnet" as const,
-              recipientAddress: purchaseTarget.payment.recipientAddress,
+              recipientAddress: directPayment.recipientAddress,
             }
           : null;
   const claims = getAuthenticatedWallet(request);

@@ -2,14 +2,14 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 import { z } from "zod";
 import { AccountAddress } from "@aptos-labs/ts-sdk";
 
-import { AuthError } from "./auth";
-import { savePublishedAsset } from "./catalog";
-import { getShelbyClient } from "./shelby";
-import { normalizeAptAmount } from "../../src/lib/aptos-amount";
+import { AuthError } from "./auth.js";
+import { savePublishedAsset } from "./catalog.js";
+import { getShelbyClient } from "./shelby.js";
+import { normalizeAptAmount } from "../../src/lib/aptos-amount.js";
 import {
   normalizePrimeGatePackageSlug,
   normalizePrimeGateReleaseVersion,
-} from "../../src/lib/primegate-package";
+} from "../../src/lib/primegate-package.js";
 
 const PRIMEGATE_PUBLISH_SOURCE = "primegate";
 const PRIMEGATE_PUBLISH_VERSION = 1;
@@ -166,7 +166,10 @@ async function readShelbyBlobBytes(account: string, blobName: string) {
   return Buffer.concat(chunks);
 }
 
-export async function readPublishedManifest(ownerAddress: string, manifestBlobName: string) {
+export async function readPublishedManifest(
+  ownerAddress: string,
+  manifestBlobName: string,
+): Promise<PrimeGatePublishedManifest> {
   const manifestBytes = await readShelbyBlobBytes(ownerAddress, manifestBlobName);
   let rawManifest: unknown;
 
@@ -177,16 +180,17 @@ export async function readPublishedManifest(ownerAddress: string, manifestBlobNa
   }
 
   try {
-    return strictPublishedManifestSchema.parse(rawManifest);
+    return strictPublishedManifestSchema.parse(rawManifest) as PrimeGatePublishedManifest;
   } catch {
     try {
       const legacyManifest = legacyPublishedManifestSchema.parse(rawManifest);
-      return {
+      const normalizedManifest: PrimeGatePublishedManifest = {
         ...legacyManifest,
         packageSlug: null,
         priceApt: normalizeAptAmount(String(legacyManifest.price)),
         releaseVersion: null,
       };
+      return normalizedManifest;
     } catch {
       throw new AuthError("Published manifest is invalid.", 400);
     }

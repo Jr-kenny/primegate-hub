@@ -1,13 +1,20 @@
-import { Aptos, AptosConfig, AccountAddress, Network } from "@aptos-labs/ts-sdk";
+import {
+  Aptos,
+  AptosConfig,
+  AccountAddress,
+  Network,
+  type EntryFunctionPayloadResponse,
+  isUserTransactionResponse,
+} from "@aptos-labs/ts-sdk";
 
-import { getPrimeGateRegistryFunctionId, isPrimeGatePackageIdArgument } from "../../src/lib/primegate-registry-contract";
-import { AuthError } from "./auth";
-import { getSql } from "./database";
+import { getPrimeGateRegistryFunctionId, isPrimeGatePackageIdArgument } from "../../src/lib/primegate-registry-contract.js";
+import { AuthError } from "./auth.js";
+import { getSql } from "./database.js";
 import {
   getPrimeGateRegistryContractAddress,
   getPrimeGateRegistryListing,
   hasPrimeGateRegistryPurchase,
-} from "./primegate-registry";
+} from "./primegate-registry.js";
 
 const aptos = new Aptos(
   new AptosConfig({
@@ -37,6 +44,15 @@ function transactionTimestampToIso(timestamp: unknown) {
 
   const milliseconds = Number(BigInt(String(timestamp)) / 1000n);
   return Number.isFinite(milliseconds) ? new Date(milliseconds).toISOString() : new Date().toISOString();
+}
+
+function isEntryFunctionPayload(payload: unknown): payload is EntryFunctionPayloadResponse {
+  return (
+    Boolean(payload) &&
+    typeof payload === "object" &&
+    "function" in payload &&
+    "arguments" in payload
+  );
 }
 
 export async function verifyPublishedAssetPayment(input: {
@@ -80,7 +96,7 @@ export async function verifyPublishedAssetPayment(input: {
 
   const transaction = await aptos.getTransactionByHash({ transactionHash: normalizedTransactionHash });
 
-  if (transaction.type !== "user_transaction") {
+  if (!isUserTransactionResponse(transaction)) {
     throw new AuthError("Payment transaction must be a user transaction.", 400);
   }
 
@@ -94,7 +110,7 @@ export async function verifyPublishedAssetPayment(input: {
 
   const payload = transaction.payload;
 
-  if (!payload || payload.type !== "entry_function_payload") {
+  if (!payload || payload.type !== "entry_function_payload" || !isEntryFunctionPayload(payload)) {
     throw new AuthError("Payment transaction payload is not a supported entry function.", 400);
   }
 

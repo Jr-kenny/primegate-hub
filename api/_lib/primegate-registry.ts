@@ -1,16 +1,33 @@
-import { AccountAddress, Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import {
+  AccountAddress,
+  Aptos,
+  AptosConfig,
+  Network,
+  type EntryFunctionArgumentTypes,
+  type SimpleEntryFunctionArgumentTypes,
+} from "@aptos-labs/ts-sdk";
 
 import {
   PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS,
   encodePrimeGatePackageId,
   getPrimeGateRegistryFunctionId,
-} from "../../src/lib/primegate-registry-contract";
+} from "../../src/lib/primegate-registry-contract.js";
 
 const aptos = new Aptos(
   new AptosConfig({
     network: Network.TESTNET,
   }),
 );
+
+type ViewFunctionArgument = EntryFunctionArgumentTypes | SimpleEntryFunctionArgumentTypes;
+type PrimeGateFunctionId = `${string}::${string}::${string}`;
+
+function getRegistryFunctionId(functionName: string) {
+  return getPrimeGateRegistryFunctionId(
+    getPrimeGateRegistryContractAddress(),
+    functionName,
+  ) as PrimeGateFunctionId;
+}
 
 function normalizeAddress(address: string) {
   return AccountAddress.from(address).toStringLong().toLowerCase();
@@ -24,10 +41,10 @@ export function getPrimeGateRegistryContractAddress() {
   );
 }
 
-async function viewBoolean(functionName: string, args: unknown[]) {
+async function viewBoolean(functionName: string, args: ViewFunctionArgument[]) {
   const [value] = await aptos.view<[boolean]>({
     payload: {
-      function: getPrimeGateRegistryFunctionId(getPrimeGateRegistryContractAddress(), functionName),
+      function: getRegistryFunctionId(functionName),
       functionArguments: args,
     },
   });
@@ -35,10 +52,10 @@ async function viewBoolean(functionName: string, args: unknown[]) {
   return Boolean(value);
 }
 
-async function viewAddress(functionName: string, args: unknown[]) {
+async function viewAddress(functionName: string, args: ViewFunctionArgument[]) {
   const [value] = await aptos.view<[string]>({
     payload: {
-      function: getPrimeGateRegistryFunctionId(getPrimeGateRegistryContractAddress(), functionName),
+      function: getRegistryFunctionId(functionName),
       functionArguments: args,
     },
   });
@@ -46,10 +63,10 @@ async function viewAddress(functionName: string, args: unknown[]) {
   return typeof value === "string" ? normalizeAddress(value) : null;
 }
 
-async function viewU64(functionName: string, args: unknown[]) {
+async function viewU64(functionName: string, args: ViewFunctionArgument[]) {
   const [value] = await aptos.view<[string | number]>({
     payload: {
-      function: getPrimeGateRegistryFunctionId(getPrimeGateRegistryContractAddress(), functionName),
+      function: getRegistryFunctionId(functionName),
       functionArguments: args,
     },
   });

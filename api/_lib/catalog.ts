@@ -1,29 +1,29 @@
 import { z } from "zod";
 
-import { getSql } from "./database";
-import { verifyPublishedAssetPayment } from "./payments";
+import { getSql } from "./database.js";
+import { verifyPublishedAssetPayment } from "./payments.js";
 import type {
   RegistryPackage,
   RegistryPublisherProfile,
   RegistryPublisherSearchResult,
   RegistryReview,
   RegistryVersion,
-} from "../../src/lib/registry-data";
+} from "../../src/lib/registry-data.js";
 import {
   getDiscoverPackages,
   getPackageById,
   getPublisherProfile as getFallbackPublisherProfile,
-} from "../../src/lib/registry-data";
-import { formatAptAmountLabel, normalizeAptAmount, parseAptAmountToOctas } from "../../src/lib/aptos-amount";
-import { buildPrimeGatePackageHandle } from "../../src/lib/primegate-package";
-import { inferPrimeGatePackageType } from "../../src/lib/primegate-package-type";
+} from "../../src/lib/registry-data.js";
+import { formatAptAmountLabel, normalizeAptAmount, parseAptAmountToOctas } from "../../src/lib/aptos-amount.js";
+import { buildPrimeGatePackageHandle } from "../../src/lib/primegate-package.js";
+import { inferPrimeGatePackageType } from "../../src/lib/primegate-package-type.js";
 import type {
   PrimeGateEntitlementRecord,
   PrimeGateInstallRecord,
   PrimeGatePublishedAssetRecord,
   PrimeGatePublisherSaleRecord,
   PrimeGatePurchaseRecord,
-} from "../../src/lib/registry-state";
+} from "../../src/lib/registry-state.js";
 
 function toRows(value: unknown) {
   return value as Record<string, unknown>[];
