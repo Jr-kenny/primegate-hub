@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Package, Search, Sparkles, UserRound } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePrimeGateCatalogSearch, usePrimeGatePublisherSearch } from "@/hooks/usePrimeGateCatalog";
 import { formatPrimeGatePackageTypeLabel } from "@/lib/primegate-package-type";
@@ -117,13 +118,11 @@ export default function SearchPage() {
 
   return (
     <div className="container max-w-4xl py-8 space-y-8">
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">Registry Search</p>
-        <h1 className="text-3xl font-bold tracking-tight">Search packages, publishers, and capabilities</h1>
-        <p className="text-sm text-muted-foreground">
-          Search is public. Users only need to sign in when they want to purchase or install.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="REGISTRY SEARCH"
+        title="Search packages, publishers, and capabilities"
+        subtitle="Search is public. Users only need to sign in when they want to purchase or install."
+      />
 
       <div className="relative">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -144,7 +143,7 @@ export default function SearchPage() {
         <div className="space-y-6">
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-accent" />
+              <Search className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Top Matches</h2>
             </div>
             <div className="space-y-1">
@@ -166,7 +165,7 @@ export default function SearchPage() {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{match.label}</p>
+                        <p className="font-serif text-base font-semibold">{match.label}</p>
                         <span className="rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                           {match.kind}
                         </span>
@@ -174,7 +173,7 @@ export default function SearchPage() {
                       <p className="truncate text-xs text-muted-foreground">{match.description}</p>
                       <p className="mt-1 text-[11px] text-muted-foreground">{match.meta}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground">Open</span>
+                    <span className="text-xs font-semibold text-primary">Open →</span>
                   </Link>
                 ))
               ) : (
@@ -187,7 +186,7 @@ export default function SearchPage() {
 
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <UserRound className="h-4 w-4 text-accent" />
+              <UserRound className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Publisher Results</h2>
             </div>
             <div className="space-y-1">
@@ -209,7 +208,7 @@ export default function SearchPage() {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{publisher.id}</p>
+                        <p className="font-serif text-base font-semibold">{publisher.id}</p>
                         {publisher.verified && (
                           <span className="rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                             Verified
@@ -226,7 +225,7 @@ export default function SearchPage() {
                         {publisher.packageCount} packages | Member since {publisher.memberSince}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">Open</span>
+                    <span className="text-xs font-semibold text-primary">Open →</span>
                   </Link>
                 ))
               ) : (
@@ -239,7 +238,7 @@ export default function SearchPage() {
 
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-accent" />
+              <Package className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Catalog Results</h2>
             </div>
             <div className="space-y-1">
@@ -262,7 +261,7 @@ export default function SearchPage() {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{pkg.name}</p>
+                        <p className="font-serif text-base font-semibold">{pkg.name}</p>
                         <span className="rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                           {formatPrimeGatePackageTypeLabel(pkg.type)}
                         </span>
@@ -277,7 +276,7 @@ export default function SearchPage() {
                         {pkg.packageHandle ?? pkg.publisher} | {pkg.price}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">Open</span>
+                    <span className="text-xs font-semibold text-primary">Open →</span>
                   </Link>
                 ))
               ) : (
@@ -291,7 +290,7 @@ export default function SearchPage() {
 
         <aside className="rounded-xl border bg-card p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-accent" />
+            <Sparkles className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold">Suggested scopes</h2>
           </div>
           <div className="flex flex-wrap gap-2">
