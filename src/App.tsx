@@ -71,10 +71,11 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/pricing" element={<Navigate to="/how-it-works" replace />} />
-              <Route path="/publish" element={<Publish />} />
+              <Route path="/publish" element={<Navigate to="/workspace/publish" replace />} />
             </Route>
             <Route path="/workspace" element={<WorkspaceLayout />}>
               <Route index element={<WorkspaceExplore />} />
+              <Route path="publish" element={<Publish />} />
               <Route path="installed" element={<Installed />} />
               <Route path="purchases" element={<Purchases />} />
               <Route path="publishing" element={<Publishing />} />
