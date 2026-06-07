@@ -9,6 +9,7 @@ import {
   GitBranch,
   DollarSign,
   ChevronLeft,
+  Rocket,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -18,6 +19,7 @@ const mainItems = [
   { label: "Explore", path: "/workspace", icon: Compass, end: true },
   { label: "Installed", path: "/workspace/installed", icon: Download },
   { label: "Purchases", path: "/workspace/purchases", icon: ShoppingBag },
+  { label: "Publish", path: "/workspace/publish", icon: Rocket },
   { label: "Publishing", path: "/workspace/publishing", icon: Upload },
   { label: "Wallet", path: "/workspace/wallet", icon: Wallet },
 ];
