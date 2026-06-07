@@ -51,7 +51,7 @@ export function WorkspaceSidebar() {
       <div className="flex items-center justify-between h-14 px-3 border-b border-sidebar-border">
         {!collapsed && (
           <Link to="/" className="flex items-center gap-2 font-serif text-base font-semibold">
-            <span className="text-sidebar-primary">◈</span> PrimeGate
+            <span className="text-sidebar-primary">⌘</span> PrimeGate
           </Link>
         )}
         <button

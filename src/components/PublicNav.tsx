@@ -69,7 +69,7 @@ export function PublicNav() {
           to="/"
           className="flex shrink-0 items-center gap-2 font-serif text-xl font-semibold tracking-tight"
         >
-          <span className="text-primary">◈</span> PrimeGate
+          <span className="text-primary">⌘</span> PrimeGate
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
