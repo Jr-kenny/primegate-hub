@@ -26,3 +26,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Brainstorm visual companion
+.superpowers/
