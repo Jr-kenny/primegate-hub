@@ -3,6 +3,7 @@ import { Search, Wallet, Menu, Copy, LogOut, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,6 @@ const navItems = [
   { label: "Discover", path: "/discover" },
   { label: "Search", path: "/search" },
   { label: "Categories", path: "/categories" },
-  { label: "Publish", path: "/publish" },
   { label: "Docs", path: "/docs" },
   { label: "How It Works", path: "/how-it-works" },
 ];
@@ -65,8 +65,11 @@ export function PublicNav() {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between gap-4">
-        <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold text-lg tracking-tight">
-          <span className="text-accent">⌘</span> PrimeGate
+        <Link
+          to="/"
+          className="flex shrink-0 items-center gap-2 font-serif text-xl font-semibold tracking-tight"
+        >
+          <span className="text-primary">◈</span> PrimeGate
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
@@ -86,6 +89,7 @@ export function PublicNav() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link
             to="/search"
             className="hidden sm:flex items-center gap-2 h-8 rounded-md border bg-secondary/30 px-3 text-sm text-muted-foreground hover:bg-secondary/50 transition-colors"
