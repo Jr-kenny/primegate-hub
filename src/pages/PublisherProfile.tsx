@@ -25,7 +25,7 @@ export default function PublisherProfile() {
         </div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">{publisherProfile.id}</h1>
+            <h1 className="font-serif text-2xl font-semibold tracking-tight">{publisherProfile.id}</h1>
             {publisherProfile.verified && <Shield className="h-4 w-4 text-accent" />}
           </div>
           <p className="text-sm text-muted-foreground">

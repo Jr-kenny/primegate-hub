@@ -42,7 +42,7 @@ export default function PackageDetail() {
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold font-mono">{pkg.name}</h1>
+            <h1 className="font-serif text-2xl font-semibold tracking-tight">{pkg.name}</h1>
             {pkg.verified && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium">Verified</span>
             )}
