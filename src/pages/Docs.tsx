@@ -1,5 +1,7 @@
 import { Book, Code, Link2, Plug, Terminal } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/PageHeader";
+
 const sections = [
   {
     icon: Book,
@@ -50,13 +52,11 @@ resolve -> manifest -> download`;
 export default function Docs() {
   return (
     <div className="container max-w-4xl py-8 space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Documentation</h1>
-        <p className="text-sm text-muted-foreground">
-          PrimeGate exposes a single canonical flow for search, resolve, manifests, and downloads. Use this flow
-          across web, CLI, SDK, and MCP so clients never bypass PrimeGate for Shelby data.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="DOCUMENTATION"
+        title="Documentation"
+        subtitle="PrimeGate exposes a single canonical flow for search, resolve, manifests, and downloads — across web, CLI, SDK, and MCP."
+      />
 
       <div className="rounded-lg border p-4 space-y-3">
         <h2 className="text-sm font-semibold">Quick Start (Canonical Flow)</h2>
@@ -74,7 +74,7 @@ export default function Docs() {
             key={section.title}
             className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-secondary/30"
           >
-            <section.icon className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+            <section.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div>
               <h3 className="text-sm font-semibold">{section.title}</h3>
               <p className="text-sm text-muted-foreground">{section.desc}</p>
@@ -85,7 +85,7 @@ export default function Docs() {
 
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Link2 className="h-4 w-4 text-accent" />
+          <Link2 className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">HTTP Contract</h2>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export default function Docs() {
 
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Code className="h-4 w-4 text-accent" />
+          <Code className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">TypeScript Client</h2>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -115,7 +115,7 @@ export default function Docs() {
 
       <div className="rounded-lg border p-4 space-y-2">
         <div className="flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-accent" />
+          <Terminal className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">CLI Flow</h2>
         </div>
         <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap">{cliSnippet}</div>
@@ -123,7 +123,7 @@ export default function Docs() {
 
       <div className="rounded-lg border p-4 space-y-2">
         <div className="flex items-center gap-2">
-          <Plug className="h-4 w-4 text-accent" />
+          <Plug className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">MCP Flow</h2>
         </div>
         <div className="rounded-md bg-secondary p-3 font-mono text-sm whitespace-pre-wrap">{mcpSnippet}</div>
