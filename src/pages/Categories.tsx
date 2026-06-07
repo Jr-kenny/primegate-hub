@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Archive, Box, Braces, Database, FileText, Image } from "lucide-react";
 import { useMemo } from "react";
 
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useDiscoverPackages } from "@/hooks/usePrimeGateCatalog";
 import { formatPrimeGatePackageTypeLabel, type PrimeGatePackageType } from "@/lib/primegate-package-type";
 
@@ -28,10 +29,11 @@ export default function Categories() {
 
   return (
     <div className="container py-8 space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Categories</h1>
-        <p className="text-sm text-muted-foreground">Browse the registry by asset type.</p>
-      </div>
+      <PageHeader
+        eyebrow="BROWSE BY TYPE"
+        title="Categories"
+        subtitle="Browse the registry by asset type."
+      />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {categories.map((cat) => {
@@ -41,13 +43,17 @@ export default function Categories() {
           <Link
             key={cat.type}
             to={`/discover?type=${cat.type}`}
-            className="flex items-center gap-4 p-4 rounded-lg border hover:bg-secondary/50 transition-colors group"
+            className="group flex items-center gap-4 rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40"
           >
-            <cat.icon className="h-5 w-5 text-accent shrink-0" />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+              <cat.icon className="h-5 w-5" />
+            </span>
             <div className="flex-1">
-              <p className="text-sm font-medium group-hover:text-accent transition-colors">{label}</p>
-              <p className="text-xs text-muted-foreground">
-                {isLoading ? "Loading..." : `${count.toLocaleString()} assets`}
+              <p className="font-serif text-base font-semibold transition-colors group-hover:text-primary">
+                {label}
+              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {isLoading ? "Loading…" : `${count.toLocaleString()} assets`}
               </p>
             </div>
           </Link>
