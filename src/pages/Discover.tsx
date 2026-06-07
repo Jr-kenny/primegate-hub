@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Search, SlidersHorizontal } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PackageCard } from "@/components/package/PackageCard";
+import { PackageCardSkeleton } from "@/components/package/PackageCardSkeleton";
 import { useDiscoverPackages } from "@/hooks/usePrimeGateCatalog";
-import { formatPrimeGatePackageTypeLabel } from "@/lib/primegate-package-type";
 import type { RegistryPackage } from "@/lib/registry-data";
 import { discoverFilters, discoverTabs } from "@/lib/registry-data";
 
@@ -52,10 +54,11 @@ export default function Discover() {
 
   return (
     <div className="container py-8 space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Discover</h1>
-        <p className="text-sm text-muted-foreground">Browse packages, prompts, datasets, tools, and agent-ready assets.</p>
-      </div>
+      <PageHeader
+        eyebrow="THE REGISTRY FOR AGENT-READY PACKAGES"
+        title="Discover"
+        subtitle="Browse packages, prompts, datasets, tools, and agent-ready assets."
+      />
 
       <div className="flex items-center gap-3">
         <div className="flex-1 relative">
@@ -110,48 +113,21 @@ export default function Discover() {
         ))}
       </div>
 
-      <div className="space-y-1">
+      <div>
         {isLoading && visiblePackages.length === 0 ? (
-          <div className="rounded-md border p-6 text-sm text-muted-foreground">
-            Loading registry packages...
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <PackageCardSkeleton key={index} />
+            ))}
           </div>
         ) : visiblePackages.length > 0 ? (
-          visiblePackages.map((pkg) => (
-            <Link
-              key={pkg.id}
-              to={`/package/${pkg.id}`}
-              className="flex items-center justify-between p-4 rounded-md hover:bg-secondary/50 transition-colors group"
-            >
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-medium group-hover:text-accent transition-colors">{pkg.name}</span>
-                  {pkg.verified && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium">Verified</span>
-                  )}
-                  {pkg.agentReady && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">Agent-ready</span>
-                  )}
-                  {pkg.createdAt && activeTab === "New" && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                      New
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground truncate">{pkg.description}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {pkg.packageHandle ?? pkg.publisher}
-                  {pkg.createdAt ? ` | ${new Date(pkg.createdAt).toLocaleDateString()}` : ""}
-                </p>
-              </div>
-              <div className="flex items-center gap-6 shrink-0 text-xs text-muted-foreground">
-                <span className="hidden sm:inline">{formatPrimeGatePackageTypeLabel(pkg.type)}</span>
-                <span className="hidden sm:inline">{pkg.installs.toLocaleString()} installs</span>
-                <span className="font-medium text-foreground">{pkg.price}</span>
-              </div>
-            </Link>
-          ))
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {visiblePackages.map((pkg) => (
+              <PackageCard key={pkg.id} package={pkg} />
+            ))}
+          </div>
         ) : (
-          <div className="rounded-md border p-6 text-sm text-muted-foreground">
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
             No packages matched this discover view yet.
           </div>
         )}
