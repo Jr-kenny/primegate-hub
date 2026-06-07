@@ -134,3 +134,13 @@
     animation: pg-shimmer 1.2s ease-in-out infinite;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-fade-up,
+  .pg-skeleton::after {
+    animation: none !important;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}
