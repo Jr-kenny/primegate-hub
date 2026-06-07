@@ -14,7 +14,7 @@ export function WorkspaceLayout() {
         <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-2xl items-center justify-center">
           <div className="pg-fade-up w-full rounded-3xl border border-border/70 bg-card/70 p-8 text-center shadow-sm backdrop-blur">
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">Workspace</p>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight">Connect Wallet</h1>
+            <h1 className="mt-4 font-serif text-3xl font-semibold tracking-tight">Connect Wallet</h1>
             {isReconnectingWallet ? (
               <div className="mt-4 flex items-center justify-center">
                 <Spinner className="h-5 w-5" />
