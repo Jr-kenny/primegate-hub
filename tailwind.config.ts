@@ -61,6 +61,10 @@ export default {
         },
         "nav-highlight": "hsl(var(--nav-highlight))",
       },
+      fontFamily: {
+        sans: ['"Inter"', "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ['"Spectral"', "Georgia", "Cambria", "serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

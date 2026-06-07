@@ -4,79 +4,79 @@
 
 @layer base {
   :root {
-    --background: 40 20% 97%;
-    --foreground: 40 10% 12%;
+    --background: 41 39% 94%;
+    --foreground: 36 17% 15%;
 
-    --card: 45 30% 93%;
-    --card-foreground: 40 10% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 36 17% 15%;
 
-    --popover: 40 20% 97%;
-    --popover-foreground: 40 10% 12%;
+    --popover: 44 40% 97%;
+    --popover-foreground: 36 17% 15%;
 
-    --primary: 45 30% 36%;
-    --primary-foreground: 40 20% 97%;
+    --primary: 38 42% 42%;
+    --primary-foreground: 44 60% 98%;
 
-    --secondary: 40 15% 92%;
-    --secondary-foreground: 40 10% 20%;
+    --secondary: 42 33% 90%;
+    --secondary-foreground: 36 17% 25%;
 
-    --muted: 40 12% 90%;
-    --muted-foreground: 40 8% 50%;
+    --muted: 42 25% 88%;
+    --muted-foreground: 40 11% 47%;
 
-    --accent: 45 35% 40%;
-    --accent-foreground: 40 20% 97%;
+    --accent: 38 42% 42%;
+    --accent-foreground: 44 60% 98%;
 
     --destructive: 0 60% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 15% 85%;
-    --input: 40 15% 85%;
-    --ring: 45 30% 36%;
+    --border: 41 33% 84%;
+    --input: 41 33% 84%;
+    --ring: 38 42% 42%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 55 15% 25%;
-    --sidebar-foreground: 40 15% 90%;
-    --sidebar-primary: 45 40% 60%;
-    --sidebar-primary-foreground: 40 10% 12%;
-    --sidebar-accent: 55 12% 30%;
-    --sidebar-accent-foreground: 40 15% 90%;
-    --sidebar-border: 55 10% 32%;
-    --sidebar-ring: 45 40% 60%;
-    --sidebar-muted: 45 25% 50%;
+    --sidebar-background: 36 22% 14%;
+    --sidebar-foreground: 42 30% 88%;
+    --sidebar-primary: 38 55% 66%;
+    --sidebar-primary-foreground: 36 22% 12%;
+    --sidebar-accent: 36 18% 20%;
+    --sidebar-accent-foreground: 42 30% 88%;
+    --sidebar-border: 36 16% 22%;
+    --sidebar-ring: 38 55% 66%;
+    --sidebar-muted: 40 14% 55%;
 
-    --nav-highlight: 65 70% 50%;
+    --nav-highlight: 38 50% 50%;
   }
 
   .dark {
-    --background: 40 10% 8%;
-    --foreground: 40 15% 90%;
-    --card: 40 10% 12%;
-    --card-foreground: 40 15% 90%;
-    --popover: 40 10% 12%;
-    --popover-foreground: 40 15% 90%;
-    --primary: 45 35% 55%;
-    --primary-foreground: 40 10% 8%;
-    --secondary: 40 10% 16%;
-    --secondary-foreground: 40 15% 90%;
-    --muted: 40 8% 18%;
-    --muted-foreground: 40 10% 55%;
-    --accent: 45 30% 45%;
-    --accent-foreground: 40 15% 90%;
-    --destructive: 0 60% 40%;
+    --background: 38 20% 7%;
+    --foreground: 41 36% 87%;
+    --card: 36 24% 10%;
+    --card-foreground: 41 36% 87%;
+    --popover: 36 24% 10%;
+    --popover-foreground: 41 36% 87%;
+    --primary: 38 55% 66%;
+    --primary-foreground: 38 20% 9%;
+    --secondary: 36 22% 16%;
+    --secondary-foreground: 41 30% 84%;
+    --muted: 36 18% 16%;
+    --muted-foreground: 40 12% 55%;
+    --accent: 40 45% 58%;
+    --accent-foreground: 38 20% 9%;
+    --destructive: 0 60% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 40 8% 20%;
-    --input: 40 8% 20%;
-    --ring: 45 35% 55%;
-    --sidebar-background: 55 15% 12%;
-    --sidebar-foreground: 40 15% 85%;
-    --sidebar-primary: 45 40% 55%;
-    --sidebar-primary-foreground: 40 10% 8%;
-    --sidebar-accent: 55 12% 18%;
-    --sidebar-accent-foreground: 40 15% 85%;
-    --sidebar-border: 55 10% 20%;
-    --sidebar-ring: 45 40% 55%;
-    --sidebar-muted: 45 20% 40%;
-    --nav-highlight: 65 70% 50%;
+    --border: 36 22% 16%;
+    --input: 36 22% 16%;
+    --ring: 38 55% 66%;
+    --sidebar-background: 38 24% 6%;
+    --sidebar-foreground: 41 30% 85%;
+    --sidebar-primary: 38 55% 62%;
+    --sidebar-primary-foreground: 38 20% 8%;
+    --sidebar-accent: 36 20% 12%;
+    --sidebar-accent-foreground: 41 30% 85%;
+    --sidebar-border: 36 18% 14%;
+    --sidebar-ring: 38 55% 62%;
+    --sidebar-muted: 40 16% 45%;
+    --nav-highlight: 38 50% 55%;
   }
 }
 
@@ -85,8 +85,12 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
