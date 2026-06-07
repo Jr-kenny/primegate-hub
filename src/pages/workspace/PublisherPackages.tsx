@@ -34,7 +34,7 @@ export default function PublisherPackages() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <h1 className="text-2xl font-bold">Your Packages</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Your Packages</h1>
         <Button asChild>
           <Link to="/publish">New Listing</Link>
         </Button>

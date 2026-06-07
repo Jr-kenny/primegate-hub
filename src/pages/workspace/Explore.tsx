@@ -14,7 +14,7 @@ export default function WorkspaceExplore() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Explore</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Explore</h1>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input

@@ -9,7 +9,7 @@ export default function PublisherReleases() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Releases</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Releases</h1>
       {walletAddress && publishedAssets.length > 0 ? (
         <div className="space-y-3">
           {publishedAssets.map((asset) => (

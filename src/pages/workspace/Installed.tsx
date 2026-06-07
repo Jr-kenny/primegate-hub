@@ -8,7 +8,7 @@ export default function Installed() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Installed</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Installed</h1>
       <p className="text-sm text-muted-foreground">
         Packages saved in your PrimeGate workspace. Web installs download to your browser device, while CLI installs
         save files locally on disk.

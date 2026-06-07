@@ -14,7 +14,7 @@ export default function Publishing() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Publishing</h1>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Publishing</h1>
           <p className="text-sm text-muted-foreground">Manage your published assets.</p>
         </div>
         <Button asChild>

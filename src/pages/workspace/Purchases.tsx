@@ -9,7 +9,7 @@ export default function Purchases() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Purchases</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Purchases</h1>
       <p className="text-sm text-muted-foreground">Assets you've purchased or licensed.</p>
       {walletAddress && purchases.length > 0 ? (
         <div className="space-y-3">

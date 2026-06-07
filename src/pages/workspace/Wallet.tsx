@@ -41,7 +41,7 @@ export default function WalletPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Wallet</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Wallet</h1>
 
       <div className="rounded-lg border bg-card p-5 space-y-4">
         <div className="space-y-1">

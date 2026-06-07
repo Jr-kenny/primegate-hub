@@ -12,7 +12,7 @@ export default function PublisherSales() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Sales</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight">Sales</h1>
       {walletAddress ? (
         paidAssetCount > 0 ? (
           <div className="space-y-4">
