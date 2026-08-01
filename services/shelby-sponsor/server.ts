@@ -26,6 +26,26 @@ function writeJson(response: ServerResponse, status: number, body: unknown) {
   response.end(payload);
 }
 
+function writeHealthResponse(response: ServerResponse, includeBody: boolean) {
+  const payload = JSON.stringify({
+    sponsorConfigured: Boolean(process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY?.trim()),
+    status: "ok",
+  });
+
+  response.statusCode = 200;
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.setHeader("Cache-Control", "no-store");
+  response.setHeader("X-Content-Type-Options", "nosniff");
+
+  if (includeBody) {
+    response.setHeader("Content-Length", Buffer.byteLength(payload));
+    response.end(payload);
+    return;
+  }
+
+  response.end();
+}
+
 function isAuthorized(request: IncomingMessage) {
   const configuredToken = getServiceToken();
   const suppliedToken = request.headers["x-primegate-sponsor-token"];
@@ -133,11 +153,8 @@ function getPublicErrorMessage(error: unknown) {
 }
 
 export async function handleSponsorRequest(request: IncomingMessage, response: ServerResponse) {
-  if (request.method === "GET" && request.url === "/health") {
-    writeJson(response, 200, {
-      sponsorConfigured: Boolean(process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY?.trim()),
-      status: "ok",
-    });
+  if ((request.method === "GET" || request.method === "HEAD") && request.url === "/health") {
+    writeHealthResponse(response, request.method === "GET");
     return;
   }
 
