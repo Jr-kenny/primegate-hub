@@ -87,6 +87,7 @@ async function getPackageDownload(request: Request) {
           "Cache-Control": artifact.cacheControl,
           "Content-Range": artifact.contentRange,
           "Content-Length": "0",
+          "Vary": "Range",
           "X-Content-Type-Options": "nosniff",
         },
         status: 416,
@@ -99,6 +100,7 @@ async function getPackageDownload(request: Request) {
       "Content-Disposition": buildContentDisposition(artifact.originalFileName),
       "Content-Length": String(artifact.sizeBytes),
       "Content-Type": artifact.mimeType || "application/octet-stream",
+      "Vary": "Range",
       "X-Content-Type-Options": "nosniff",
     });
 
