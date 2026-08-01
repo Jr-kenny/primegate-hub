@@ -41,6 +41,7 @@ export default function PublisherSales() {
                         <p className="text-xs text-muted-foreground">
                           Buyer {shortenHash(sale.buyerWalletAddress, 6)}
                         </p>
+                        <p className="text-xs text-muted-foreground">{sale.offerName} · {sale.offerLicense}</p>
                       </div>
                       <p className="text-sm font-medium">
                         {sale.paymentAmountOctas

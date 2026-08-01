@@ -266,6 +266,10 @@ async function download(url: string) {
   return new Uint8Array(await response.arrayBuffer());
 }
 
+function toManifestFilePath(filePath: string) {
+  return path.relative(process.cwd(), filePath).split(path.sep).join("/");
+}
+
 async function main() {
   await ensureDir(ROOT);
   await ensureDir(GENERATED_DIR);
@@ -282,7 +286,7 @@ async function main() {
       packageSlug: asset.fileName.replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
       releaseVersion: "1.0.0",
       priceApt: asset.priceApt,
-      filePath,
+      filePath: toManifestFilePath(filePath),
       source: "generated",
     });
   }
@@ -297,7 +301,7 @@ async function main() {
       packageSlug: asset.fileName.replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
       releaseVersion: "1.0.0",
       priceApt: "0",
-      filePath,
+      filePath: toManifestFilePath(filePath),
       source: "external",
     });
   }

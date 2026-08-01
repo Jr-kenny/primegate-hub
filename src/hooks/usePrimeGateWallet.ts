@@ -11,12 +11,14 @@ import {
 } from "react";
 import { groupAndSortWallets, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { serializeSignInOutput } from "@aptos-labs/siwa";
+import { Network } from "@aptos-labs/ts-sdk";
 import type { NetworkInfo } from "@aptos-labs/wallet-adapter-react";
 
 import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
 import { toast } from "@/hooks/use-toast";
 import {
   getLastPrimeGateAuthDebug,
+  logoutPrimeGateSession,
   requestWalletMessageChallenge,
   requestWalletSessionNonce,
   verifyWalletMessageSessionSignature,
@@ -340,6 +342,8 @@ function usePrimeGateWalletState() {
       const challenge = await requestWalletMessageChallenge(address);
       const output = await wallet.signMessage({
         address: true,
+        application: true,
+        chainId: true,
         message: challenge.message,
         nonce: challenge.nonce,
       });
@@ -356,13 +360,11 @@ function usePrimeGateWalletState() {
       const nextSession = (
         await verifyWalletMessageSessionSignature({
           address: output.address,
-          application: output.application,
-          bitmap: output.bitmap ? Array.from(output.bitmap) : undefined,
-          chainId: output.chainId,
+          application: output.application ?? challenge.application,
+          chainId: output.chainId ?? challenge.chainId,
           fullMessage: output.fullMessage,
-          message: output.message,
-          minKeysRequired: wallet.account.minKeysRequired,
-          nonce: output.nonce,
+          message: output.message ?? challenge.message,
+          nonce: output.nonce ?? challenge.nonce,
           prefix: output.prefix,
           publicKey,
           signature,
@@ -423,7 +425,7 @@ function usePrimeGateWalletState() {
       }
 
       setIsSwitchingNetwork(true);
-      await wallet.changeNetwork(PRIMEGATE_APTOS_NETWORK);
+      await wallet.changeNetwork(Network.TESTNET);
       toast({
         title: "Network updated",
         description: `Wallet switched to ${PRIMEGATE_APTOS_NETWORK}.`,
@@ -449,6 +451,9 @@ function usePrimeGateWalletState() {
     setLastSessionDebug(null);
     setLastSessionError(null);
     setSession(null);
+    void logoutPrimeGateSession().catch((error) => {
+      console.error("PrimeGate session logout failed", { error });
+    });
   };
 
   const ensurePrimeGateSession = useCallback(async () => {

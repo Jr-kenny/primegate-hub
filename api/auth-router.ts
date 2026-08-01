@@ -2,8 +2,10 @@ import type { SerializedAptosSignInOutput } from "@aptos-labs/siwa";
 
 import {
   AuthError,
+  clearPrimeGateSessionCookie,
   clearPrimeGateSignInCookie,
   clearPrimeGateSignMessageCookie,
+  createPrimeGateSessionCookie,
   createPrimeGateSignInResponse,
   createPrimeGateSignMessageResponse,
   verifyWalletMessageSession,
@@ -28,6 +30,17 @@ type VerifyWalletMessagePayload = {
 
 function getRoute(request: Request) {
   return new URL(request.url).searchParams.get("route")?.trim() ?? "";
+}
+
+async function postLogout(request: Request) {
+  return jsonResponse(
+    { data: true },
+    {
+      headers: {
+        "Set-Cookie": clearPrimeGateSessionCookie(request),
+      },
+    },
+  );
 }
 
 async function postNonce(request: Request) {
@@ -91,9 +104,7 @@ async function postVerify(request: Request) {
     return jsonResponse(
       { data: session },
       {
-        headers: {
-          "Set-Cookie": clearPrimeGateSignInCookie(request),
-        },
+        headers: buildSessionHeaders(request, session.session.token, clearPrimeGateSignInCookie(request)),
       },
     );
   } catch (error) {
@@ -130,7 +141,7 @@ async function postMessageNonce(request: Request) {
       return errorResponse("walletAddress is required.", 400);
     }
 
-    const signMessageResponse = createPrimeGateSignMessageResponse(request, walletAddress);
+    const signMessageResponse = await createPrimeGateSignMessageResponse(request, walletAddress);
     return jsonResponse(
       { data: signMessageResponse.payload },
       {
@@ -141,6 +152,7 @@ async function postMessageNonce(request: Request) {
     );
   } catch (error) {
     console.error("POST /api/auth/message/nonce failed", error);
+    const status = error instanceof AuthError ? error.status : 500;
     return jsonResponse(
       {
         error:
@@ -150,7 +162,7 @@ async function postMessageNonce(request: Request) {
         headers: {
           "Set-Cookie": clearPrimeGateSignMessageCookie(request),
         },
-        status: 500,
+        status,
       },
     );
   }
@@ -197,9 +209,7 @@ async function postMessageVerify(request: Request) {
     return jsonResponse(
       { data: session },
       {
-        headers: {
-          "Set-Cookie": clearPrimeGateSignMessageCookie(request),
-        },
+        headers: buildSessionHeaders(request, session.session.token, clearPrimeGateSignMessageCookie(request)),
       },
     );
   } catch (error) {
@@ -232,10 +242,19 @@ async function postMessageVerify(request: Request) {
   }
 }
 
+function buildSessionHeaders(request: Request, token: string, challengeCookie: string) {
+  const headers = new Headers();
+  headers.append("Set-Cookie", createPrimeGateSessionCookie(request, token));
+  headers.append("Set-Cookie", challengeCookie);
+  return headers;
+}
+
 export async function POST(request: Request) {
   const route = getRoute(request);
 
   switch (route) {
+    case "logout":
+      return postLogout(request);
     case "nonce":
       return postNonce(request);
     case "verify":

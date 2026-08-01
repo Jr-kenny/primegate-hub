@@ -65,17 +65,54 @@ create table if not exists published_assets (
   release_version text not null,
   title text not null,
   description text not null,
+  license text not null default 'Custom',
+  keywords_json text not null default '[]',
+  readme_markdown text not null default '',
+  release_notes text not null default '',
+  release_channel text not null default 'latest',
   price numeric(20,8) not null default 0,
   asset_blob_name text not null,
   manifest_blob_name text not null,
   mime_type text not null,
   original_file_name text not null,
   size_bytes bigint not null,
+  asset_sha256 text,
+  content_key_envelope text,
+  encryption_json text,
+  ciphertext_size_bytes bigint,
+  manifest_ciphertext_size_bytes bigint,
+  listing_status text not null default 'active' check (listing_status in ('pending', 'active', 'failed')),
+  listing_error text,
+  listing_updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 
 alter table published_assets add column if not exists package_slug text;
 alter table published_assets add column if not exists release_version text;
+alter table published_assets add column if not exists license text not null default 'Custom';
+alter table published_assets add column if not exists keywords_json text not null default '[]';
+alter table published_assets add column if not exists readme_markdown text not null default '';
+alter table published_assets add column if not exists release_notes text not null default '';
+alter table published_assets add column if not exists release_channel text not null default 'latest';
+alter table published_assets add column if not exists asset_sha256 text;
+alter table published_assets add column if not exists content_key_envelope text;
+alter table published_assets add column if not exists encryption_json text;
+alter table published_assets add column if not exists ciphertext_size_bytes bigint;
+alter table published_assets add column if not exists manifest_ciphertext_size_bytes bigint;
+alter table published_assets add column if not exists listing_status text default 'active';
+alter table published_assets add column if not exists listing_error text;
+alter table published_assets add column if not exists listing_updated_at timestamptz default now();
+
+update published_assets
+set listing_status = 'active'
+where listing_status is null or btrim(listing_status) = '';
+
+update published_assets
+set listing_updated_at = coalesce(listing_updated_at, created_at, now())
+where listing_updated_at is null;
+
+alter table published_assets alter column listing_status set not null;
+alter table published_assets alter column listing_updated_at set not null;
 
 update published_assets
 set package_slug = lower(regexp_replace(coalesce(nullif(title, ''), id), '[^a-zA-Z0-9]+', '-', 'g'))
@@ -96,9 +133,80 @@ where release_version is null or btrim(release_version) = '';
 alter table published_assets alter column package_slug set not null;
 alter table published_assets alter column release_version set not null;
 
+update published_assets
+set license = 'Custom'
+where license is null or btrim(license) = '';
+
+update published_assets
+set keywords_json = '[]'
+where keywords_json is null or btrim(keywords_json) = '';
+
+update published_assets
+set readme_markdown = ''
+where readme_markdown is null;
+
+update published_assets
+set release_notes = ''
+where release_notes is null;
+
+update published_assets
+set release_channel = 'latest'
+where release_channel is null or btrim(release_channel) = '';
+
+create table if not exists published_offers (
+  id uuid primary key default gen_random_uuid(),
+  published_asset_id text not null references published_assets(id) on delete cascade,
+  slug text not null,
+  name text not null,
+  description text not null,
+  price numeric(20,8) not null default 0,
+  currency text not null default 'APT',
+  license text not null default 'Custom',
+  update_policy text not null default 'release-only',
+  included_artifacts_json text not null default '["primary"]',
+  created_at timestamptz not null default now(),
+  unique (published_asset_id, slug)
+);
+
+create index if not exists idx_published_offers_asset_id on published_offers (published_asset_id);
+
+insert into published_offers (
+  published_asset_id,
+  slug,
+  name,
+  description,
+  price,
+  currency,
+  license,
+  update_policy,
+  included_artifacts_json
+)
+select
+  published_assets.id,
+  'default',
+  case when published_assets.price = 0 then 'Free access' else 'Standard access' end,
+  published_assets.description,
+  published_assets.price,
+  'APT',
+  published_assets.license,
+  'release-only',
+  '["primary"]'
+from published_assets
+where not exists (
+  select 1
+  from published_offers
+  where published_offers.published_asset_id = published_assets.id
+    and published_offers.slug = 'default'
+);
+
 create table if not exists purchases (
   wallet_address text not null,
   package_id text not null,
+  offer_id uuid references published_offers(id),
+  offer_slug text,
+  offer_name text,
+  offer_license text,
+  offer_update_policy text,
   package_name text not null,
   payment_amount_octas text,
   payment_recipient text,
@@ -109,6 +217,12 @@ create table if not exists purchases (
   purchased_at timestamptz not null default now(),
   primary key (wallet_address, package_id)
 );
+
+alter table purchases add column if not exists offer_id uuid references published_offers(id);
+alter table purchases add column if not exists offer_slug text;
+alter table purchases add column if not exists offer_name text;
+alter table purchases add column if not exists offer_license text;
+alter table purchases add column if not exists offer_update_policy text;
 
 create table if not exists installs (
   wallet_address text not null,
@@ -139,6 +253,8 @@ create index if not exists idx_registry_reviews_package_id on registry_reviews (
 create index if not exists idx_registry_reviews_wallet_address on registry_reviews (lower(wallet_address));
 create index if not exists idx_published_assets_owner_address on published_assets (lower(owner_address));
 create index if not exists idx_published_assets_owner_slug on published_assets (lower(owner_address), package_slug);
+create unique index if not exists idx_published_assets_owner_slug_release
+  on published_assets (lower(owner_address), package_slug, release_version);
 create index if not exists idx_published_assets_owner_slug_created on published_assets (lower(owner_address), package_slug, created_at desc, id desc);
 create index if not exists idx_published_assets_title_trgm on published_assets using gin (title gin_trgm_ops);
 create index if not exists idx_published_assets_description_trgm on published_assets using gin (description gin_trgm_ops);
@@ -146,6 +262,7 @@ create index if not exists idx_published_assets_original_file_name_trgm on publi
 create index if not exists idx_published_assets_package_slug_trgm on published_assets using gin (package_slug gin_trgm_ops);
 create index if not exists idx_published_assets_owner_address_trgm on published_assets using gin (lower(owner_address) gin_trgm_ops);
 create index if not exists idx_purchases_wallet_address on purchases (lower(wallet_address));
+create index if not exists idx_purchases_offer_id on purchases (offer_id);
 create unique index if not exists idx_purchases_payment_tx_hash on purchases (lower(payment_tx_hash)) where payment_tx_hash is not null;
 create index if not exists idx_installs_wallet_address on installs (lower(wallet_address));
 create index if not exists idx_wallet_auth_nonces_wallet_address on wallet_auth_nonces (lower(wallet_address));

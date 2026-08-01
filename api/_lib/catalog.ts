@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getSql } from "./database.js";
 import { verifyPublishedAssetPayment } from "./payments.js";
+import { getPrimeGateRegistryListing } from "./primegate-registry.js";
 import type {
   RegistryPackage,
   RegistryPublisherProfile,
@@ -15,11 +16,15 @@ import {
   getPublisherProfile as getFallbackPublisherProfile,
 } from "../../src/lib/registry-data.js";
 import { formatAptAmountLabel, normalizeAptAmount, parseAptAmountToOctas } from "../../src/lib/aptos-amount.js";
-import { buildPrimeGatePackageHandle } from "../../src/lib/primegate-package.js";
+import {
+  buildPrimeGatePackageHandle,
+  comparePrimeGateReleaseVersions,
+} from "../../src/lib/primegate-package.js";
 import { inferPrimeGatePackageType } from "../../src/lib/primegate-package-type.js";
 import type {
   PrimeGateEntitlementRecord,
   PrimeGateInstallRecord,
+  PrimeGateOfferRecord,
   PrimeGatePublishedAssetRecord,
   PrimeGatePublisherSaleRecord,
   PrimeGatePurchaseRecord,
@@ -77,6 +82,60 @@ function toStoredAptAmount(value: unknown) {
   return normalizeAptAmount(typeof value === "number" ? value : String(value));
 }
 
+function parseStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map(String).filter(Boolean);
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeOfferUpdatePolicy(value: unknown): PrimeGateOfferRecord["updatePolicy"] {
+  const normalized = String(value ?? "release-only");
+  return normalized === "patches" || normalized === "minor" || normalized === "lifetime"
+    ? normalized
+    : "release-only";
+}
+
+function mapOfferRow(row: Record<string, unknown>): PrimeGateOfferRecord {
+  return {
+    id: row.offer_id || row.id ? String(row.offer_id ?? row.id) : null,
+    slug: String(row.offer_slug ?? row.slug ?? "default"),
+    name: String(row.offer_name ?? row.name ?? "Standard access"),
+    description: String(row.offer_description ?? row.description ?? "Access to this release."),
+    price: toStoredAptAmount(row.offer_price ?? row.price ?? 0),
+    currency: "APT",
+    license: String(row.offer_license ?? row.license ?? "Custom"),
+    updatePolicy: normalizeOfferUpdatePolicy(row.offer_update_policy ?? row.update_policy),
+    includedArtifacts: parseStringArray(row.included_artifacts_json ?? row.includedArtifacts ?? ["primary"]),
+  };
+}
+
+function buildDefaultOffer(row: Record<string, unknown>): PrimeGateOfferRecord {
+  const price = toStoredAptAmount(row.price ?? 0);
+  const title = String(row.title ?? row.package_name ?? "PrimeGate package");
+  return {
+    id: null,
+    slug: "default",
+    name: price === "0" ? "Free access" : "Standard access",
+    description: price === "0" ? `Free access to ${title}.` : `Access to ${title} ${String(row.release_version ?? row.version ?? "")} release.`,
+    price,
+    currency: "APT",
+    license: String(row.license ?? "Custom"),
+    updatePolicy: "release-only",
+    includedArtifacts: ["primary"],
+  };
+}
+
 function buildUsageSnippet(packageName: string) {
   return `await primegate.install("${packageName}")`;
 }
@@ -103,6 +162,7 @@ function mapPublishedAssetToRegistryPackage(
   const ownerAddress = String(row.owner_address).toLowerCase();
   const createdAt = toIsoTimestamp(row.created_at);
   const createdYear = new Date(createdAt).getUTCFullYear();
+  const offer = row.offer_slug ? mapOfferRow(row) : buildDefaultOffer(row);
 
   return {
     id: String(row.id),
@@ -111,16 +171,21 @@ function mapPublishedAssetToRegistryPackage(
     packageSlug: String(row.package_slug),
     createdAt,
     description: String(row.description),
+    keywords: parseStringArray(row.keywords_json),
+    readmeMarkdown: String(row.readme_markdown ?? ""),
+    releaseChannel: String(row.release_channel ?? "latest"),
+    releaseNotes: String(row.release_notes ?? ""),
     publisher: buildPublishedAssetPublisher(ownerAddress),
     type: inferPrimeGatePackageType(String(row.original_file_name), String(row.mime_type)),
     installs: 0,
-    price: Number(row.price) <= 0 ? "Free" : formatAptAmountLabel(toStoredAptAmount(row.price)),
+    price: offer.price === "0" ? "Free" : formatAptAmountLabel(offer.price),
     verified: false,
     agentReady: false,
     version: String(row.release_version),
-    license: "Custom",
+    license: offer.license,
     runtime: "CLI, SDK, MCP, Web",
     chain: "Aptos",
+    offer,
     releaseCount: Number(row.package_release_count ?? 1),
     publisherSummary: "Independent publisher using PrimeGate as the canonical registry layer.",
     publisherPackageCount: packageCountForOwner,
@@ -201,21 +266,37 @@ function sortRegistryPackagesAlphabetically(packages: RegistryPackage[]) {
 }
 
 function mapPublishedAssetVersionRows(rows: Record<string, unknown>[]): RegistryVersion[] {
-  return rows.map((row, index) => ({
+  const sortedRows = [...rows].sort((left, right) => {
+    try {
+      return comparePrimeGateReleaseVersions(String(right.release_version), String(left.release_version));
+    } catch {
+      return toIsoTimestamp(right.created_at).localeCompare(toIsoTimestamp(left.created_at));
+    }
+  });
+
+  return sortedRows.map((row, index) => ({
     id: String(row.id),
     notes: `Published ${String(row.original_file_name)} to Shelby as ${String(row.asset_blob_name)}.`,
     publishedAt: toIsoTimestamp(row.created_at),
+    channel: String(row.release_channel ?? "latest"),
     status: index === 0 ? "latest" : index === 1 ? "stable" : "legacy",
     version: String(row.release_version),
   }));
 }
 
 function mapPublishedAssetRow(row: Record<string, unknown>): PrimeGatePublishedAssetRecord {
+  const listingStatus = String(row.listing_status ?? "active");
+  const offer = row.offer_slug ? mapOfferRow(row) : buildDefaultOffer(row);
+
   return {
     assetBlobName: String(row.asset_blob_name),
+    assetSha256: row.asset_sha256 ? String(row.asset_sha256) : null,
     createdAt: toIsoTimestamp(row.created_at),
     description: String(row.description),
+    encrypted: Boolean(row.encryption_json),
     id: String(row.id),
+    keywords: parseStringArray(row.keywords_json),
+    license: String(row.license ?? "Custom"),
     manifestBlobName: String(row.manifest_blob_name),
     mimeType: String(row.mime_type),
     originalFileName: String(row.original_file_name),
@@ -223,6 +304,13 @@ function mapPublishedAssetRow(row: Record<string, unknown>): PrimeGatePublishedA
     packageHandle: buildPublishedAssetPackageHandle(row),
     packageSlug: String(row.package_slug),
     price: Number(row.price),
+    readmeMarkdown: String(row.readme_markdown ?? ""),
+    releaseChannel: String(row.release_channel ?? "latest"),
+    releaseNotes: String(row.release_notes ?? ""),
+    offer,
+    listingStatus:
+      listingStatus === "pending" || listingStatus === "failed" ? listingStatus : "active",
+    listingError: row.listing_error ? String(row.listing_error) : null,
     sizeBytes: Number(row.size_bytes),
     title: String(row.title),
     version: String(row.release_version),
@@ -233,6 +321,11 @@ function mapPurchaseRow(row: Record<string, unknown>): PrimeGatePurchaseRecord {
   return {
     packageId: String(row.package_id),
     packageName: String(row.package_name),
+    offerId: row.offer_id ? String(row.offer_id) : null,
+    offerName: String(row.offer_name ?? "Standard access"),
+    offerSlug: String(row.offer_slug ?? "default"),
+    offerLicense: String(row.offer_license ?? "Custom"),
+    offerUpdatePolicy: normalizeOfferUpdatePolicy(row.offer_update_policy),
     paymentAmountOctas: row.payment_amount_octas ? String(row.payment_amount_octas) : null,
     paymentRecipient: row.payment_recipient ? String(row.payment_recipient) : null,
     paymentTxHash: row.payment_tx_hash ? String(row.payment_tx_hash) : null,
@@ -249,6 +342,11 @@ function mapPublisherSaleRow(row: Record<string, unknown>): PrimeGatePublisherSa
     buyerWalletAddress: String(row.wallet_address),
     packageId: String(row.package_id),
     packageName: String(row.package_name),
+    offerId: row.offer_id ? String(row.offer_id) : null,
+    offerName: String(row.offer_name ?? "Standard access"),
+    offerSlug: String(row.offer_slug ?? "default"),
+    offerLicense: String(row.offer_license ?? "Custom"),
+    offerUpdatePolicy: normalizeOfferUpdatePolicy(row.offer_update_policy),
     paymentAmountOctas: row.payment_amount_octas ? String(row.payment_amount_octas) : null,
     paymentRecipient: row.payment_recipient ? String(row.payment_recipient) : null,
     paymentTxHash: row.payment_tx_hash ? String(row.payment_tx_hash) : null,
@@ -308,14 +406,23 @@ export async function listPackages() {
     select distinct on (lower(owner_address), package_slug)
       id,
       asset_blob_name,
+      asset_sha256,
       created_at,
       description,
+      encryption_json,
+      keywords_json,
+      license,
       manifest_blob_name,
       mime_type,
       original_file_name,
       owner_address,
       package_slug,
       price,
+      readme_markdown,
+      listing_error,
+      listing_status,
+      release_channel,
+      release_notes,
       release_version,
       size_bytes,
       title,
@@ -393,14 +500,20 @@ export async function getPackage(id: string) {
       select
         id,
         asset_blob_name,
+        asset_sha256,
         created_at,
         description,
+        keywords_json,
+        license,
         manifest_blob_name,
         mime_type,
         original_file_name,
         owner_address,
         package_slug,
         price,
+        readme_markdown,
+        release_channel,
+        release_notes,
         release_version,
         size_bytes,
         title,
@@ -429,6 +542,7 @@ export async function getPackage(id: string) {
             asset_blob_name,
             created_at,
             original_file_name,
+            release_channel,
             release_version
           from published_assets
           where lower(owner_address) = lower(${publishedAssetRow.owner_address})
@@ -605,14 +719,23 @@ export async function listPublishedAssets(ownerAddress: string) {
     select
       id,
       asset_blob_name,
+      asset_sha256,
       created_at,
       description,
+      encryption_json,
+      keywords_json,
+      license,
       manifest_blob_name,
       mime_type,
       original_file_name,
       owner_address,
       package_slug,
       price,
+      readme_markdown,
+      listing_error,
+      listing_status,
+      release_channel,
+      release_notes,
       release_version,
       size_bytes,
       title
@@ -635,14 +758,23 @@ export async function getPublishedAssetById(id: string) {
     select
       id,
       asset_blob_name,
+      asset_sha256,
       created_at,
       description,
+      encryption_json,
+      keywords_json,
+      license,
       manifest_blob_name,
       mime_type,
       original_file_name,
       owner_address,
       package_slug,
       price,
+      readme_markdown,
+      listing_error,
+      listing_status,
+      release_channel,
+      release_notes,
       release_version,
       size_bytes,
       title
@@ -656,6 +788,129 @@ export async function getPublishedAssetById(id: string) {
   }
 
   return mapPublishedAssetRow(rows[0]);
+}
+
+export type PrimeGatePublishedAssetAccess = {
+  contentKeyEnvelope: string | null;
+  ciphertextSizeBytes: number | null;
+  encryptionJson: string | null;
+  manifestCiphertextSizeBytes: number | null;
+};
+
+export async function getPublishedAssetAccess(id: string): Promise<PrimeGatePublishedAssetAccess | null> {
+  const sql = getSql();
+
+  if (!sql) {
+    return null;
+  }
+
+  const rows = toRows(await sql`
+    select
+      content_key_envelope,
+      ciphertext_size_bytes,
+      encryption_json,
+      manifest_ciphertext_size_bytes
+    from published_assets
+    where id = ${id}
+    limit 1
+  `);
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  return {
+    contentKeyEnvelope: row.content_key_envelope ? String(row.content_key_envelope) : null,
+    ciphertextSizeBytes: row.ciphertext_size_bytes == null ? null : Number(row.ciphertext_size_bytes),
+    encryptionJson: row.encryption_json ? String(row.encryption_json) : null,
+    manifestCiphertextSizeBytes:
+      row.manifest_ciphertext_size_bytes == null ? null : Number(row.manifest_ciphertext_size_bytes),
+  };
+}
+
+export async function getPublishedAssetOffer(packageId: string) {
+  const sql = getSql();
+
+  if (!sql) {
+    return null;
+  }
+
+  const rows = toRows(await sql`
+    select
+      id,
+      published_asset_id,
+      slug,
+      name,
+      description,
+      price,
+      currency,
+      license,
+      update_policy,
+      included_artifacts_json
+    from published_offers
+    where published_asset_id = ${packageId}
+    order by created_at asc, id asc
+    limit 1
+  `);
+
+  if (rows.length > 0) {
+    return mapOfferRow(rows[0]);
+  }
+
+  const publishedAsset = await getPublishedAssetById(packageId);
+  return publishedAsset?.offer ?? null;
+}
+
+export async function syncPublishedAssetListing(ownerAddress: string, packageId: string) {
+  const sql = getSql();
+
+  if (!sql) {
+    throw new Error("DATABASE_URL is not configured.");
+  }
+
+  const publishedAsset = await getPublishedAssetById(packageId);
+  if (!publishedAsset) {
+    throw new Error("Published asset could not be found.");
+  }
+
+  if (publishedAsset.ownerAddress.toLowerCase() !== ownerAddress.toLowerCase()) {
+    throw new Error("Published asset does not belong to the connected publisher.");
+  }
+
+  let listingStatus: "active" | "failed" | "pending" = "active";
+  let listingError: string | null = null;
+
+  if (publishedAsset.price > 0) {
+    const listing = await getPrimeGateRegistryListing(packageId);
+    const expectedPriceOctas = parseAptAmountToOctas(toStoredAptAmount(publishedAsset.price)).toString();
+
+    if (!listing) {
+      listingStatus = "pending";
+    } else if (
+      listing.sellerAddress !== publishedAsset.ownerAddress.toLowerCase() ||
+      listing.priceOctas.toString() !== expectedPriceOctas
+    ) {
+      listingStatus = "failed";
+      listingError = "The on-chain listing does not match this release owner and price.";
+    }
+  }
+
+  await sql`
+    update published_assets
+    set listing_status = ${listingStatus},
+        listing_error = ${listingError},
+        listing_updated_at = now()
+    where id = ${packageId}
+      and lower(owner_address) = lower(${ownerAddress})
+  `;
+
+  const syncedAsset = await getPublishedAssetById(packageId);
+  if (!syncedAsset) {
+    throw new Error("Published asset could not be loaded after listing status update.");
+  }
+
+  return syncedAsset;
 }
 
 export async function getCatalogPurchaseTarget(packageId: string) {
@@ -691,7 +946,7 @@ export async function getCatalogPurchaseTarget(packageId: string) {
   }
 
   const publishedAssetRows = toRows(await sql`
-    select id, owner_address, price, release_version, title
+    select id, owner_address, price, release_version, title, license
     from published_assets
     where id = ${packageId}
     limit 1
@@ -702,13 +957,15 @@ export async function getCatalogPurchaseTarget(packageId: string) {
   }
 
   const publishedAsset = publishedAssetRows[0];
-  const amountApt = toStoredAptAmount(publishedAsset.price);
+  const offer = (await getPublishedAssetOffer(packageId)) ?? buildDefaultOffer(publishedAsset);
+  const amountApt = toStoredAptAmount(offer.price);
 
   return {
     kind: "published-asset" as const,
     packageId: String(publishedAsset.id),
     packageName: String(publishedAsset.title),
-    price: Number(publishedAsset.price) <= 0 ? "Free" : formatAptAmountLabel(amountApt),
+    offer,
+    price: amountApt === "0" ? "Free" : formatAptAmountLabel(amountApt),
     payment: {
       amountApt,
       amountOctas: parseAptAmountToOctas(amountApt).toString(),
@@ -781,14 +1038,22 @@ export async function searchCatalogPackages(query: string) {
     select distinct on (lower(owner_address), package_slug)
       id,
       asset_blob_name,
+      asset_sha256,
       created_at,
       description,
+      keywords_json,
+      license,
       manifest_blob_name,
       mime_type,
       original_file_name,
       owner_address,
       package_slug,
       price,
+      readme_markdown,
+      listing_error,
+      listing_status,
+      release_channel,
+      release_notes,
       release_version,
       size_bytes,
       title,
@@ -934,6 +1199,11 @@ export async function listPurchases(walletAddress: string) {
     select
       package_id,
       package_name,
+      offer_id,
+      offer_name,
+      offer_slug,
+      offer_license,
+      offer_update_policy,
       payment_amount_octas,
       payment_recipient,
       payment_tx_hash,
@@ -962,6 +1232,11 @@ export async function listPublisherSales(ownerAddress: string) {
       wallet_address,
       package_id,
       package_name,
+      offer_id,
+      offer_name,
+      offer_slug,
+      offer_license,
+      offer_update_policy,
       payment_amount_octas,
       payment_recipient,
       payment_tx_hash,
@@ -1010,6 +1285,11 @@ export async function listEntitlements(walletAddress: string) {
     select
       p.id as package_id,
       p.name as package_name,
+      null::uuid as offer_id,
+      'Free access'::text as offer_name,
+      'default'::text as offer_slug,
+      p.license as offer_license,
+      'release-only'::text as offer_update_policy,
       ${walletAddress}::text as wallet_address,
       now()::text as granted_at,
       'free'::text as source
@@ -1019,6 +1299,11 @@ export async function listEntitlements(walletAddress: string) {
     select
       purchases.package_id,
       purchases.package_name,
+      purchases.offer_id,
+      purchases.offer_name,
+      purchases.offer_slug,
+      purchases.offer_license,
+      purchases.offer_update_policy,
       purchases.wallet_address,
       purchases.purchased_at::text as granted_at,
       'purchase'::text as source
@@ -1033,6 +1318,11 @@ export async function listEntitlements(walletAddress: string) {
       grantedAt: String(row.granted_at),
       packageId: String(row.package_id),
       packageName: String(row.package_name),
+      offerId: row.offer_id ? String(row.offer_id) : null,
+      offerName: String(row.offer_name ?? "Standard access"),
+      offerSlug: String(row.offer_slug ?? "default"),
+      offerLicense: String(row.offer_license ?? "Custom"),
+      offerUpdatePolicy: normalizeOfferUpdatePolicy(row.offer_update_policy),
       source: String(row.source) === "purchase" ? "purchase" : "free",
       walletAddress: String(row.wallet_address),
     };
@@ -1050,17 +1340,27 @@ export async function listEntitlements(walletAddress: string) {
 
 const publishedAssetSchema = z.object({
   assetBlobName: z.string().min(1),
+  assetSha256: z.string().regex(/^0x[a-f0-9]{64}$/),
+  ciphertextSizeBytes: z.number().int().positive(),
+  contentKeyEnvelope: z.string().min(1),
   createdAt: z.string().min(1),
   description: z.string().min(1),
   id: z.string().min(1),
+  keywords: z.array(z.string().trim().min(1).max(64)).max(20).default([]),
+  license: z.string().trim().min(1).max(128).default("Custom"),
   manifestBlobName: z.string().min(1),
+  encryptionJson: z.string().min(1),
+  manifestCiphertextSizeBytes: z.number().int().positive(),
   mimeType: z.string().min(1),
   originalFileName: z.string().min(1),
   ownerAddress: z.string().min(1),
   packageSlug: z.string().min(1),
   priceApt: z.string().min(1),
+  readmeMarkdown: z.string().max(50_000).default(""),
+  releaseChannel: z.string().min(1).default("latest"),
+  releaseNotes: z.string().max(10_000).default(""),
   releaseVersion: z.string().min(1),
-  sizeBytes: z.number().min(0),
+  sizeBytes: z.number().int().min(0),
   title: z.string().min(1),
 });
 
@@ -1085,6 +1385,44 @@ const reviewSchema = z.object({
   walletAddress: z.string().min(1),
 });
 
+async function ensureDefaultPublishedOffer(
+  sql: NonNullable<ReturnType<typeof getSql>>,
+  asset: {
+    description?: string;
+    id?: string;
+    license?: string;
+    priceApt?: string;
+    releaseVersion?: string;
+    title?: string;
+  },
+) {
+  await sql`
+    insert into published_offers (
+      published_asset_id,
+      slug,
+      name,
+      description,
+      price,
+      currency,
+      license,
+      update_policy,
+      included_artifacts_json
+    )
+    values (
+      ${String(asset.id)},
+      'default',
+      ${normalizeAptAmount(String(asset.priceApt ?? "0")) === "0" ? "Free access" : "Standard access"},
+      ${asset.description || `Access to ${asset.title ?? "this package"} ${asset.releaseVersion ?? ""} release.`},
+      ${normalizeAptAmount(String(asset.priceApt ?? "0"))},
+      'APT',
+      ${asset.license ?? "Custom"},
+      'release-only',
+      '["primary"]'
+    )
+    on conflict (published_asset_id, slug) do nothing
+  `;
+}
+
 export async function savePublishedAsset(input: unknown) {
   const sql = getSql();
 
@@ -1093,6 +1431,49 @@ export async function savePublishedAsset(input: unknown) {
   }
 
   const asset = publishedAssetSchema.parse(input);
+  const existingRows = toRows(await sql`
+    select
+      id,
+      asset_blob_name,
+      asset_sha256,
+      content_key_envelope,
+      ciphertext_size_bytes,
+      encryption_json,
+      owner_address,
+      package_slug,
+      release_version,
+      manifest_ciphertext_size_bytes,
+      size_bytes
+    from published_assets
+    where id = ${asset.id}
+    limit 1
+  `);
+
+  if (existingRows.length > 0) {
+    const existing = existingRows[0];
+    if (
+      String(existing.owner_address).toLowerCase() !== asset.ownerAddress.toLowerCase() ||
+      String(existing.asset_blob_name) !== asset.assetBlobName ||
+      String(existing.asset_sha256 ?? "") !== asset.assetSha256 ||
+      Number(existing.ciphertext_size_bytes) !== asset.ciphertextSizeBytes ||
+      String(existing.encryption_json ?? "") !== asset.encryptionJson ||
+      String(existing.package_slug) !== asset.packageSlug ||
+      String(existing.release_version) !== asset.releaseVersion ||
+      Number(existing.manifest_ciphertext_size_bytes) !== asset.manifestCiphertextSizeBytes ||
+      Number(existing.size_bytes) !== asset.sizeBytes
+    ) {
+      throw new Error("This release ID is immutable and cannot be reused for different package bytes.");
+    }
+
+    await ensureDefaultPublishedOffer(sql, asset);
+    const existingAsset = await getPublishedAssetById(asset.id);
+    if (!existingAsset) {
+      throw new Error("The existing PrimeGate release could not be loaded.");
+    }
+
+    return existingAsset;
+  }
+
   const conflictingRows = toRows(await sql`
     select id
     from published_assets
@@ -1115,12 +1496,25 @@ export async function savePublishedAsset(input: unknown) {
       release_version,
       title,
       description,
+      license,
+      keywords_json,
+      readme_markdown,
+      release_notes,
+      release_channel,
       price,
       asset_blob_name,
       manifest_blob_name,
       mime_type,
       original_file_name,
       size_bytes,
+      asset_sha256,
+      content_key_envelope,
+      ciphertext_size_bytes,
+      encryption_json,
+      listing_status,
+      manifest_ciphertext_size_bytes,
+      listing_error,
+      listing_updated_at,
       created_at
     )
     values (
@@ -1130,44 +1524,63 @@ export async function savePublishedAsset(input: unknown) {
       ${asset.releaseVersion},
       ${asset.title},
       ${asset.description},
+      ${asset.license},
+      ${JSON.stringify(asset.keywords)},
+      ${asset.readmeMarkdown},
+      ${asset.releaseNotes},
+      ${asset.releaseChannel},
       ${normalizeAptAmount(asset.priceApt)},
       ${asset.assetBlobName},
       ${asset.manifestBlobName},
       ${asset.mimeType},
       ${asset.originalFileName},
       ${asset.sizeBytes},
+      ${asset.assetSha256},
+      ${asset.contentKeyEnvelope},
+      ${asset.ciphertextSizeBytes},
+      ${asset.encryptionJson},
+      ${normalizeAptAmount(asset.priceApt) === "0" ? "active" : "pending"},
+      ${asset.manifestCiphertextSizeBytes},
+      null,
+      now(),
       ${asset.createdAt}
     )
-    on conflict (id) do update
-    set
-      owner_address = excluded.owner_address,
-      package_slug = excluded.package_slug,
-      release_version = excluded.release_version,
-      title = excluded.title,
-      description = excluded.description,
-      price = excluded.price,
-      asset_blob_name = excluded.asset_blob_name,
-      manifest_blob_name = excluded.manifest_blob_name,
-      mime_type = excluded.mime_type,
-      original_file_name = excluded.original_file_name,
-      size_bytes = excluded.size_bytes,
-      created_at = excluded.created_at
+    on conflict (id) do nothing
     returning
       id,
       asset_blob_name,
       created_at,
       description,
+      keywords_json,
+      license,
       manifest_blob_name,
       mime_type,
       original_file_name,
       owner_address,
       package_slug,
       price,
+      readme_markdown,
+      asset_sha256,
+      encryption_json,
+      listing_error,
+      listing_status,
+      release_channel,
+      release_notes,
       release_version,
       size_bytes,
       title
   `);
 
+  if (rows.length === 0) {
+    const insertedAsset = await getPublishedAssetById(asset.id);
+    if (!insertedAsset) {
+      throw new Error("PrimeGate could not load the immutable release after publishing.");
+    }
+
+    return insertedAsset;
+  }
+
+  await ensureDefaultPublishedOffer(sql, asset);
   return mapPublishedAssetRow(rows[0]);
 }
 
@@ -1209,6 +1622,11 @@ export async function savePurchase(input: unknown) {
     insert into purchases (
       wallet_address,
       package_id,
+      offer_id,
+      offer_slug,
+      offer_name,
+      offer_license,
+      offer_update_policy,
       package_name,
       payment_amount_octas,
       payment_recipient,
@@ -1221,6 +1639,11 @@ export async function savePurchase(input: unknown) {
     values (
       ${purchase.walletAddress},
       ${purchaseTarget.packageId},
+      ${purchaseTarget.offer.id},
+      ${purchaseTarget.offer.slug},
+      ${purchaseTarget.offer.name},
+      ${purchaseTarget.offer.license},
+      ${purchaseTarget.offer.updatePolicy},
       ${purchaseTarget.packageName},
       ${verifiedPayment.amountOctas},
       ${verifiedPayment.recipientAddress},
@@ -1232,6 +1655,11 @@ export async function savePurchase(input: unknown) {
     )
     on conflict (wallet_address, package_id) do update
     set
+      offer_id = excluded.offer_id,
+      offer_slug = excluded.offer_slug,
+      offer_name = excluded.offer_name,
+      offer_license = excluded.offer_license,
+      offer_update_policy = excluded.offer_update_policy,
       package_name = excluded.package_name,
       payment_amount_octas = excluded.payment_amount_octas,
       payment_recipient = excluded.payment_recipient,
@@ -1243,6 +1671,11 @@ export async function savePurchase(input: unknown) {
     returning
       package_id,
       package_name,
+      offer_id,
+      offer_name,
+      offer_slug,
+      offer_license,
+      offer_update_policy,
       payment_amount_octas,
       payment_recipient,
       payment_tx_hash,
@@ -1268,6 +1701,25 @@ export async function saveInstall(input: unknown) {
 
   if (!installTarget) {
     throw new Error("Package could not be found in the PrimeGate catalog.");
+  }
+
+  const requiresPurchase =
+    installTarget.kind === "published-asset"
+      ? installTarget.payment.amountOctas !== "0"
+      : installTarget.price.trim().toLowerCase() !== "free";
+
+  if (requiresPurchase) {
+    const purchaseRows = toRows(await sql`
+      select 1
+      from purchases
+      where lower(wallet_address) = lower(${install.walletAddress})
+        and package_id = ${install.packageId}
+      limit 1
+    `);
+
+    if (purchaseRows.length === 0) {
+      throw new Error("A verified purchase is required before installing this package.");
+    }
   }
 
   const rows = toRows(await sql`

@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { listPublishedAssets } from "./_lib/catalog.js";
+import { listPublishedAssets, syncPublishedAssetListing } from "./_lib/catalog.js";
 import { AuthError, requireAuthenticatedWallet } from "./_lib/auth.js";
 import { createPublishIntent, finalizePublishedAsset } from "./_lib/publishing.js";
 import { jsonResponse, errorResponse, methodNotAllowed } from "./_lib/request.js";
@@ -79,6 +79,36 @@ async function postPublishedAssets(request: Request) {
   }
 }
 
+async function postListingStatus(request: Request) {
+  try {
+    const payload = (await request.json()) as { packageId?: string };
+    const packageId = payload.packageId?.trim();
+    const claims = requireAuthenticatedWallet(request);
+
+    if (!packageId) {
+      return errorResponse("packageId is required.", 400);
+    }
+
+    const publishedAsset = await syncPublishedAssetListing(claims.walletAddress, packageId);
+    return jsonResponse({ data: publishedAsset });
+  } catch (error) {
+    console.error("POST /api/published-assets listing status failed", error);
+    return jsonResponse(
+      {
+        error: error instanceof Error ? error.message : "Unable to verify the PrimeGate listing.",
+      },
+      {
+        status:
+          error instanceof AuthError
+            ? error.status
+            : error instanceof SyntaxError || error instanceof ZodError
+              ? 400
+              : 500,
+      },
+    );
+  }
+}
+
 export async function GET(request: Request) {
   const route = getRoute(request);
 
@@ -96,6 +126,8 @@ export async function POST(request: Request) {
   switch (route) {
     case "publish-intent":
       return postPublishIntent(request);
+    case "listing-status":
+      return postListingStatus(request);
     case "published-assets":
       return postPublishedAssets(request);
     default:

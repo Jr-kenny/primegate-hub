@@ -1,11 +1,30 @@
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 import { usePrimeGateRegistry } from "@/hooks/usePrimeGateRegistry";
+import { useShelbyPublish } from "@/hooks/useShelbyPublish";
 import { formatAptAmountLabel } from "@/lib/aptos-amount";
 
 export default function PublisherReleases() {
   const { publishedAssets, walletAddress } = usePrimeGateRegistry();
+  const { retryPublishedAssetListing, retryingListingId } = useShelbyPublish();
+
+  const handleRetryListing = async (asset: (typeof publishedAssets)[number]) => {
+    try {
+      await retryPublishedAssetListing(asset);
+      toast({
+        title: "Listing confirmed",
+        description: `${asset.title} is available for paid checkout.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Listing still needs attention",
+        description: error instanceof Error ? error.message : "PrimeGate could not confirm the listing.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -25,10 +44,25 @@ export default function PublisherReleases() {
                   <p className="text-xs text-muted-foreground">{asset.packageHandle}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {asset.price === 0 ? "Free" : formatAptAmountLabel(asset.price)} ·{" "}
-                    {new Date(asset.createdAt).toLocaleString()}
+                    {asset.offer.name} · {asset.releaseChannel} · {new Date(asset.createdAt).toLocaleString()}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">Manifest: {asset.manifestBlobName}</p>
                   <p className="text-xs text-muted-foreground">Asset: {asset.assetBlobName}</p>
+                  {asset.price > 0 && asset.listingStatus !== "active" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md bg-secondary p-3">
+                      <p className="text-xs text-muted-foreground">
+                        {asset.listingError ?? "The paid listing is awaiting on-chain confirmation."}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={retryingListingId === asset.id}
+                        onClick={() => void handleRetryListing(asset)}
+                      >
+                        {retryingListingId === asset.id ? "Confirming..." : "Retry listing"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <Button asChild size="sm" variant="outline">
                   <Link to={`/package/${asset.id}`}>Open Release</Link>

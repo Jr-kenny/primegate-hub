@@ -26,10 +26,14 @@ import {
   type SerializedAptosSignInOutput,
 } from "@aptos-labs/siwa";
 
+import { getSql } from "./database.js";
+import { readPrimeGateEnvValue } from "../../src/lib/primegate-env.js";
+
 const PRIMEGATE_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const PRIMEGATE_SIGN_IN_TTL_MS = 1000 * 60 * 5;
 const PRIMEGATE_SIGN_IN_COOKIE = "primegate-siwa-input";
 const PRIMEGATE_SIGN_MESSAGE_COOKIE = "primegate-sign-message-input";
+const PRIMEGATE_SESSION_COOKIE = "primegate-session";
 const PRIMEGATE_SIGN_IN_STATEMENT = "Sign in to PrimeGate.";
 const PRIMEGATE_APTOS_NETWORK = Network.TESTNET;
 const PRIMEGATE_APTOS_CHAIN_ID = "aptos:testnet";
@@ -107,7 +111,7 @@ type VerifyWalletMessagePayload = {
 };
 
 function getSessionSecret() {
-  const secret = process.env.PRIMEGATE_SESSION_SECRET?.trim();
+  const secret = readPrimeGateEnvValue(process.env.PRIMEGATE_SESSION_SECRET);
   if (!secret) {
     throw new Error("PRIMEGATE_SESSION_SECRET is not configured.");
   }
@@ -398,29 +402,110 @@ function getSignInInputCookie(request: Request) {
   return parsed;
 }
 
-function getSignMessageInputCookie(request: Request) {
-  const rawCookie = parseCookies(request).get(PRIMEGATE_SIGN_MESSAGE_COOKIE);
-  if (!rawCookie) {
-    throw new AuthError("PrimeGate message-sign challenge was not found.", 400);
-  }
-
-  const parsed = JSON.parse(rawCookie) as PrimeGateSignMessageInput;
-
-  if (
-    !parsed.walletAddress ||
-    !parsed.application ||
-    !parsed.message ||
-    !parsed.nonce ||
-    !Number.isFinite(parsed.chainId)
-  ) {
-    throw new AuthError("PrimeGate message-sign challenge is invalid.", 400);
-  }
-
-  return parsed;
-}
-
 function getVerificationErrorMessage(result: { valid: boolean; errors?: string[] }) {
   return result.valid ? "Verification failed." : result.errors?.join(", ") || "Verification failed.";
+}
+
+async function storePrimeGateSignMessageChallenge(input: PrimeGateSignMessageInput, expiresAt: Date) {
+  const sql = getSql();
+  if (!sql) {
+    throw new AuthError("PrimeGate wallet authentication requires a configured database.", 503);
+  }
+
+  await sql`
+    insert into wallet_auth_nonces (wallet_address, nonce, message, expires_at)
+    values (${input.walletAddress}, ${input.nonce}, ${input.message}, ${expiresAt.toISOString()})
+    on conflict (wallet_address, nonce) do nothing
+  `;
+}
+
+async function getPrimeGateSignMessageChallenge(walletAddress: string, nonce: string) {
+  const sql = getSql();
+  if (!sql) {
+    throw new AuthError("PrimeGate wallet authentication requires a configured database.", 503);
+  }
+
+  const rows = (await sql`
+    select wallet_address, nonce, message
+    from wallet_auth_nonces
+    where lower(wallet_address) = lower(${walletAddress})
+      and nonce = ${nonce}
+      and consumed_at is null
+      and expires_at > now()
+    limit 1
+  `) as Array<{ message: string; nonce: string; wallet_address: string }>;
+
+  const challenge = rows[0];
+  if (!challenge) {
+    throw new AuthError("PrimeGate message-sign challenge was not found, expired, or already used.", 400);
+  }
+
+  return {
+    message: challenge.message,
+    nonce: challenge.nonce,
+    walletAddress: normalizeWalletAddress(challenge.wallet_address),
+  };
+}
+
+async function consumePrimeGateSignMessageChallenge(walletAddress: string, nonce: string) {
+  const sql = getSql();
+  if (!sql) {
+    throw new AuthError("PrimeGate wallet authentication requires a configured database.", 503);
+  }
+
+  const rows = (await sql`
+    update wallet_auth_nonces
+    set consumed_at = now()
+    where lower(wallet_address) = lower(${walletAddress})
+      and nonce = ${nonce}
+      and consumed_at is null
+      and expires_at > now()
+    returning nonce
+  `) as unknown as Array<{ nonce: string }>;
+
+  if (rows.length === 0) {
+    throw new AuthError("PrimeGate message-sign challenge was already used or expired.", 400);
+  }
+}
+
+function buildPrimeGateSignMessages(
+  address: string,
+  input: Pick<PrimeGateSignMessageInput, "application" | "chainId" | "message" | "nonce">,
+) {
+  return [
+    [
+      "APTOS",
+      `address: ${address}`,
+      `application: ${input.application}`,
+      `chainId: ${input.chainId}`,
+      `message: ${input.message}`,
+      `nonce: ${input.nonce}`,
+    ].join("\n"),
+    [
+      "APTOS",
+      `address: ${address}`,
+      `application: ${input.application}`,
+      `chain_id: ${input.chainId}`,
+      `message: ${input.message}`,
+      `nonce: ${input.nonce}`,
+    ].join("\n"),
+    [
+      "APTOS",
+      `address: ${address}`,
+      `chain_id: ${input.chainId}`,
+      `application: ${input.application}`,
+      `nonce: ${input.nonce}`,
+      `message: ${input.message}`,
+    ].join("\n"),
+  ];
+}
+
+function isExpectedPrimeGateSignMessage(
+  fullMessage: string,
+  address: string,
+  input: Pick<PrimeGateSignMessageInput, "application" | "chainId" | "message" | "nonce">,
+) {
+  return buildPrimeGateSignMessages(address, input).some((expectedMessage) => expectedMessage === fullMessage);
 }
 
 export function createPrimeGateSignInResponse(request: Request, walletAddress: string) {
@@ -451,14 +536,17 @@ export function clearPrimeGateSignInCookie(request: Request) {
   });
 }
 
-export function createPrimeGateSignMessageResponse(request: Request, walletAddress: string) {
+export async function createPrimeGateSignMessageResponse(request: Request, walletAddress: string) {
   const input: PrimeGateSignMessageInput = {
-    application: getRequestDomain(request),
+    application: getRequestOrigin(request),
     chainId: PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
     message: PRIMEGATE_SIGN_IN_STATEMENT,
     nonce: generateNonce(),
     walletAddress: normalizeWalletAddress(walletAddress),
   };
+  const expiresAt = new Date(Date.now() + PRIMEGATE_SIGN_IN_TTL_MS);
+
+  await storePrimeGateSignMessageChallenge(input, expiresAt);
 
   return {
     cookie: serializeCookie(PRIMEGATE_SIGN_MESSAGE_COOKIE, JSON.stringify(input), {
@@ -473,6 +561,24 @@ export function createPrimeGateSignMessageResponse(request: Request, walletAddre
 
 export function clearPrimeGateSignMessageCookie(request: Request) {
   return serializeCookie(PRIMEGATE_SIGN_MESSAGE_COOKIE, "", {
+    httpOnly: true,
+    maxAge: 0,
+    sameSite: "Lax",
+    secure: getCookieSecurity(request),
+  });
+}
+
+export function createPrimeGateSessionCookie(request: Request, token: string) {
+  return serializeCookie(PRIMEGATE_SESSION_COOKIE, token, {
+    httpOnly: true,
+    maxAge: Math.floor(PRIMEGATE_SESSION_TTL_MS / 1000),
+    sameSite: "Lax",
+    secure: getCookieSecurity(request),
+  });
+}
+
+export function clearPrimeGateSessionCookie(request: Request) {
+  return serializeCookie(PRIMEGATE_SESSION_COOKIE, "", {
     httpOnly: true,
     maxAge: 0,
     sameSite: "Lax",
@@ -543,9 +649,16 @@ export async function verifyWalletMessageSession(
   request: Request,
   payload: VerifyWalletMessagePayload,
 ) {
-  const expectedInput = getSignMessageInputCookie(request);
   const walletAddress = normalizeWalletAddress(payload.walletAddress);
   const responseAddress = normalizeWalletAddress(payload.address);
+  const storedChallenge = await getPrimeGateSignMessageChallenge(walletAddress, payload.nonce);
+  const expectedInput: PrimeGateSignMessageInput = {
+    application: getRequestOrigin(request),
+    chainId: PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+    message: storedChallenge.message,
+    nonce: storedChallenge.nonce,
+    walletAddress: storedChallenge.walletAddress,
+  };
 
   if (walletAddress !== expectedInput.walletAddress) {
     throw new AuthError("Wallet message-sign address does not match the requested wallet.");
@@ -555,7 +668,11 @@ export async function verifyWalletMessageSession(
     throw new AuthError("Wallet message-sign response address does not match the requested wallet.");
   }
 
-  if (typeof payload.chainId === "number" && payload.chainId !== expectedInput.chainId) {
+  if (payload.application !== expectedInput.application) {
+    throw new AuthError("Wallet message-sign application does not match the expected challenge.");
+  }
+
+  if (payload.chainId !== expectedInput.chainId) {
     throw new AuthError("Wallet message-sign chain ID does not match the expected network.");
   }
 
@@ -569,6 +686,10 @@ export async function verifyWalletMessageSession(
 
   if (payload.prefix !== "APTOS") {
     throw new AuthError("Wallet message-sign prefix is invalid.");
+  }
+
+  if (!isExpectedPrimeGateSignMessage(payload.fullMessage, payload.address, expectedInput)) {
+    throw new AuthError("Wallet message-sign full message does not match the expected challenge.");
   }
 
   const publicKey = parseWalletPublicKey(payload.publicKey, payload.minKeysRequired);
@@ -591,6 +712,8 @@ export async function verifyWalletMessageSession(
     throw new AuthError("Wallet message-sign signature is invalid.");
   }
 
+  await consumePrimeGateSignMessageChallenge(walletAddress, storedChallenge.nonce);
+
   return buildPrimeGateSession(
     responseAddress,
     getPublicKeyKind(publicKey),
@@ -600,11 +723,11 @@ export async function verifyWalletMessageSession(
 
 export function getBearerToken(request: Request) {
   const authorization = request.headers.get("authorization")?.trim();
-  if (!authorization?.toLowerCase().startsWith("bearer ")) {
-    return null;
+  if (authorization?.toLowerCase().startsWith("bearer ")) {
+    return authorization.slice("Bearer ".length).trim();
   }
 
-  return authorization.slice("Bearer ".length).trim();
+  return parseCookies(request).get(PRIMEGATE_SESSION_COOKIE) ?? null;
 }
 
 export function requireAuthenticatedWallet(request: Request, walletAddress?: string | null) {

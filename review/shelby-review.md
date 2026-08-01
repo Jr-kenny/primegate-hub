@@ -1,110 +1,38 @@
 # Shelby Review
 
-This note is only about the Shelby integration in PrimeGate.
+This note covers PrimeGate's Shelby integration and its production boundary.
 
-## What Is Already Correct
+## Implemented
 
-- The browser publish flow follows Shelby's required order: encode, register on-chain, then upload to the RPC.
-- The app waits for the registration transaction to settle before calling `putBlob`, which matches Shelby's browser upload guide.
-- The repo is already using Shelby's browser SDK and React hooks instead of hand-rolling raw RPC requests.
+- Browser publishing uses Shelby's lower-level streaming path. PrimeGate generates commitments from `File.stream()`, registers the asset and manifest in one Aptos transaction, then sends both blobs to Shelby RPC without buffering the asset in one browser array.
+- New browser and CLI releases use a versioned AES-256-GCM chunk format with a 64-byte header and 1 MiB chunks. The browser encrypts the artifact and manifest before the Shelby upload, while the API verifies the decrypted hash incrementally.
+- The publish intent accepts an optional client hash. The API re-reads the encrypted asset from Shelby, decrypts one chunk at a time, and computes its SHA-256 incrementally before saving the release record.
+- Each release gets a random content key. PrimeGate stores only an AES-GCM key envelope in Neon, protected by `PRIMEGATE_CONTENT_KEY_SECRET`. The raw content key is never stored in the catalog.
+- Direct Shelby reads can expose ciphertext metadata and bytes, but they do not expose usable release plaintext. PrimeGate decrypts full downloads and byte ranges only after the normal access check.
+- There is no default PrimeGate product upload ceiling. Deployments can set `PRIMEGATE_MAX_UPLOAD_BYTES` when they need an explicit operational guard.
+- Published artifact downloads pass through the PrimeGate authorization endpoint. Paid downloads require the on-chain purchase entitlement before the Shelby stream is opened.
+- Artifact downloads support single byte ranges and return `206`, `Content-Range`, `Content-Length`, and `Accept-Ranges`. Invalid ranges return `416`.
+- Paid resolve, manifest, and artifact responses are private and non-cacheable. Free responses can use short public cache windows.
+- Finalization treats the package slug and SemVer release as immutable. A repeated finalize is idempotent, while a different blob cannot reuse an existing release ID.
+- The manifest carries package metadata, release channel, and the default commercial offer. The registry returns that offer with the resolution and stores it with purchase records.
+- The application provides the shared query and Shelby client providers required by the browser SDK.
+- New Shelby blob names are opaque `primegate/content/<release-id>/...` paths without the original extension or package slug.
 
-## Current Limitations
+## External requirements
 
-### 1. Browser publish is using the low-level path instead of the full upload mutation
+Publishing still depends on the Shelby and Aptos environment being funded and configured:
 
-Shelby's React docs describe `useUploadBlobs` as the mutation that handles the full upload flow, including encoding, on-chain registration, RPC upload, and skipping registration when a blob already exists.
+- Aptos Testnet gas for the registration transaction
+- ShelbyUSD or the configured Shelby storage billing path
+- a frontend-safe `VITE_SHELBY_API_KEY` for browser RPC requests
+- `PRIMEGATE_PUBLISH_SECRET` and `PRIMEGATE_SESSION_SECRET` on the API
+- `PRIMEGATE_CONTENT_KEY_SECRET` on the API, with at least 32 random characters
+- `DATABASE_URL` for publish intents, verification, sessions, and the registry
 
-PrimeGate browser publish currently stitches this together manually with:
+The server-side Shelby client uses `SHELBY_API_KEY` and `SHELBY_RPC_BASE_URL` when those variables are configured. The browser key remains separate.
 
-- `useEncodeBlobs`
-- `useRegisterCommitments`
-- direct `shelbyClient.rpc.putBlob(...)`
+## Remaining production work
 
-That works, but it means:
+The browser flow still needs a durable resume action for a failure after on-chain blob registration but before PrimeGate finalization. The current release status and listing retry path cover failed paid listings after finalization. They do not yet recover every interrupted upload attempt automatically.
 
-- more moving parts in the browser publish path
-- more surface for partial failure
-- no built-in "already registered" shortcut from the higher-level Shelby flow
-
-Current file:
-
-- [useShelbyPublish.ts](C:/Users/LDC/Documents/primegate-registry-hub/src/hooks/useShelbyPublish.ts)
-
-### 2. Browser uploads depend on a frontend Shelby API key
-
-The Shelby API key guide says frontend usage should use a client key, not a private server key.
-
-PrimeGate reads Shelby from:
-
-- `VITE_SHELBY_API_KEY`
-
-That means the integration is only safe if the configured key is a frontend-safe client key. If the wrong key type is used, browser uploads can fail or expose the wrong credential shape.
-
-Current files:
-
-- [web3-constants.ts](C:/Users/LDC/Documents/primegate-registry-hub/src/config/web3-constants.ts)
-- [web3.ts](C:/Users/LDC/Documents/primegate-registry-hub/src/config/web3.ts)
-
-### 3. Publishing still has hard external prerequisites
-
-Shelby's browser upload guide requires:
-
-- Aptos Testnet
-- APT for gas
-- ShelbyUSD for storage uploads
-
-PrimeGate currently reflects those requirements in the UI, but it does not abstract them away. First-time publishers can still get blocked before upload starts.
-
-Current file:
-
-- [Publish.tsx](C:/Users/LDC/Documents/primegate-registry-hub/src/pages/Publish.tsx)
-
-### 4. The browser path has no resume or recovery around partial Shelby success
-
-PrimeGate creates a publish intent before the Shelby steps run. If one Shelby step succeeds and a later step fails, the user is left retrying manually.
-
-This matters most in the window between:
-
-- successful on-chain registration
-- successful RPC upload
-- successful PrimeGate finalize
-
-The repo does not currently expose a browser-side resume flow for that state.
-
-Current files:
-
-- [useShelbyPublish.ts](C:/Users/LDC/Documents/primegate-registry-hub/src/hooks/useShelbyPublish.ts)
-- [registry-api.ts](C:/Users/LDC/Documents/primegate-registry-hub/src/lib/registry-api.ts)
-
-### 5. Browser and CLI Shelby paths can drift
-
-The CLI uses `ShelbyNodeClient.upload()`.
-
-The browser publish path does not. It uses the lower-level React hooks and direct RPC upload.
-
-That means the two PrimeGate publishing surfaces are not using the same Shelby abstraction, so future Shelby fixes may land in one path and not the other.
-
-Current file:
-
-- [primegate.ts](C:/Users/LDC/Documents/primegate-registry-hub/src/cli/primegate.ts)
-
-## Errors And Blockers We Hit Around Shelby
-
-### Missing Shelby API key
-
-Publishing fails immediately if `VITE_SHELBY_API_KEY` is missing.
-
-### Wrong wallet network
-
-Publishing is blocked until the wallet is on Aptos Testnet.
-
-### Missing ShelbyUSD or APT
-
-Even with the wallet connected, publishing can still fail if the wallet is not funded for both:
-
-- transaction gas
-- Shelby storage upload cost
-
-### Partial publish state
-
-If Shelby registration or RPC upload fails after PrimeGate has already issued a publish intent, the user can end up with a half-finished publish attempt and no built-in recovery path in the browser flow.
+Existing testnet releases created before the encrypted format remain legacy plaintext objects in Shelby. They need a republish or migration pass before production submission if the submission claims that every release is PrimeGate-only.

@@ -20,6 +20,7 @@ export default function PackageVersions() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">{item.notes}</p>
+              {item.channel && <p className="mt-1 text-[11px] text-muted-foreground">Channel: {item.channel}</p>}
               {item.publishedAt && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Published {new Date(item.publishedAt).toLocaleString()}

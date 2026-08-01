@@ -6,7 +6,7 @@
       "packageSlug": "primegate-release-checklist",
       "releaseVersion": "1.0.0",
       "priceApt": "0.5",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-release-checklist.md",
+      "filePath": "artifacts/generated/primegate-release-checklist.md",
       "source": "generated"
     },
     {
@@ -15,7 +15,7 @@
       "packageSlug": "primegate-pricing-playbook",
       "releaseVersion": "1.0.0",
       "priceApt": "1.25",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-pricing-playbook.md",
+      "filePath": "artifacts/generated/primegate-pricing-playbook.md",
       "source": "generated"
     },
     {
@@ -24,7 +24,7 @@
       "packageSlug": "registry-audit",
       "releaseVersion": "1.0.0",
       "priceApt": "0.75",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\registry-audit.prompt",
+      "filePath": "artifacts/generated/registry-audit.prompt",
       "source": "generated"
     },
     {
@@ -33,7 +33,7 @@
       "packageSlug": "install-validation",
       "releaseVersion": "1.0.0",
       "priceApt": "0.25",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\install-validation.prompt",
+      "filePath": "artifacts/generated/install-validation.prompt",
       "source": "generated"
     },
     {
@@ -42,7 +42,7 @@
       "packageSlug": "primegate-cli-starter",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-cli-starter.md",
+      "filePath": "artifacts/generated/primegate-cli-starter.md",
       "source": "generated"
     },
     {
@@ -51,7 +51,7 @@
       "packageSlug": "registry-metadata-template",
       "releaseVersion": "1.0.0",
       "priceApt": "0.4",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\registry-metadata-template.json",
+      "filePath": "artifacts/generated/registry-metadata-template.json",
       "source": "generated"
     },
     {
@@ -60,7 +60,7 @@
       "packageSlug": "primegate-workflow",
       "releaseVersion": "1.0.0",
       "priceApt": "1.5",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-workflow.yaml",
+      "filePath": "artifacts/generated/primegate-workflow.yaml",
       "source": "generated"
     },
     {
@@ -69,7 +69,7 @@
       "packageSlug": "synthetic-registry-sample",
       "releaseVersion": "1.0.0",
       "priceApt": "0.1",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\synthetic-registry-sample.csv",
+      "filePath": "artifacts/generated/synthetic-registry-sample.csv",
       "source": "generated"
     },
     {
@@ -78,7 +78,7 @@
       "packageSlug": "synthetic-registry-sample",
       "releaseVersion": "1.0.0",
       "priceApt": "0.1",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\synthetic-registry-sample.jsonl",
+      "filePath": "artifacts/generated/synthetic-registry-sample.jsonl",
       "source": "generated"
     },
     {
@@ -87,7 +87,7 @@
       "packageSlug": "primegate-install-script",
       "releaseVersion": "1.0.0",
       "priceApt": "2.0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-install-script.ts",
+      "filePath": "artifacts/generated/primegate-install-script.ts",
       "source": "generated"
     },
     {
@@ -96,7 +96,7 @@
       "packageSlug": "primegate-install-script",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-install-script.py",
+      "filePath": "artifacts/generated/primegate-install-script.py",
       "source": "generated"
     },
     {
@@ -105,7 +105,7 @@
       "packageSlug": "primegate-ops-notes",
       "releaseVersion": "1.0.0",
       "priceApt": "3.5",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-ops-notes.md",
+      "filePath": "artifacts/generated/primegate-ops-notes.md",
       "source": "generated"
     },
     {
@@ -114,7 +114,7 @@
       "packageSlug": "primegate-support-matrix",
       "releaseVersion": "1.0.0",
       "priceApt": "0.9",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-support-matrix.md",
+      "filePath": "artifacts/generated/primegate-support-matrix.md",
       "source": "generated"
     },
     {
@@ -123,7 +123,7 @@
       "packageSlug": "primegate-onboarding-guide",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\generated\\primegate-onboarding-guide.md",
+      "filePath": "artifacts/generated/primegate-onboarding-guide.md",
       "source": "generated"
     },
     {
@@ -132,7 +132,7 @@
       "packageSlug": "usgs-earthquakes-all-day",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-day.geojson",
+      "filePath": "artifacts/external/usgs-earthquakes-all-day.geojson",
       "source": "external"
     },
     {
@@ -141,7 +141,7 @@
       "packageSlug": "usgs-earthquakes-all-day",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-day.csv",
+      "filePath": "artifacts/external/usgs-earthquakes-all-day.csv",
       "source": "external"
     },
     {
@@ -150,7 +150,7 @@
       "packageSlug": "usgs-earthquakes-all-week",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-week.geojson",
+      "filePath": "artifacts/external/usgs-earthquakes-all-week.geojson",
       "source": "external"
     },
     {
@@ -159,7 +159,7 @@
       "packageSlug": "usgs-earthquakes-all-week",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-all-week.csv",
+      "filePath": "artifacts/external/usgs-earthquakes-all-week.csv",
       "source": "external"
     },
     {
@@ -168,7 +168,7 @@
       "packageSlug": "usgs-earthquakes-significant-month",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-significant-month.geojson",
+      "filePath": "artifacts/external/usgs-earthquakes-significant-month.geojson",
       "source": "external"
     },
     {
@@ -177,7 +177,7 @@
       "packageSlug": "usgs-earthquakes-significant-month",
       "releaseVersion": "1.0.0",
       "priceApt": "0",
-      "filePath": "C:\\Users\\LDC\\Documents\\primegate-registry-hub\\artifacts\\external\\usgs-earthquakes-significant-month.csv",
+      "filePath": "artifacts/external/usgs-earthquakes-significant-month.csv",
       "source": "external"
     }
   ]

@@ -5,8 +5,11 @@ export function encodePrimeGatePackageId(packageId: string) {
   return Array.from(new TextEncoder().encode(packageId));
 }
 
-export function getPrimeGateRegistryFunctionId(contractAddress: string, functionName: string) {
-  return `${contractAddress}::registry::${functionName}`;
+export function getPrimeGateRegistryFunctionId(
+  contractAddress: string,
+  functionName: string,
+): `${string}::${string}::${string}` {
+  return `${contractAddress}::registry::${functionName}` as `${string}::${string}::${string}`;
 }
 
 function decodeHexBytes(value: string) {

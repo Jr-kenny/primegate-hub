@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { PrimeGateClientError, createPrimeGateClient } from "@/lib/primegate-client";
+import { createPrimeGateClient } from "@/lib/primegate-client";
 
 describe("createPrimeGateClient", () => {
   it("searches packages against the configured PrimeGate base URL", async () => {
@@ -121,7 +121,7 @@ describe("createPrimeGateClient", () => {
       fetch: fetchMock,
     });
 
-    await expect(client.getPackage("missing")).rejects.toMatchObject<PrimeGateClientError>({
+    await expect(client.getPackage("missing")).rejects.toMatchObject({
       message: "No package matched.",
       path: "/api/packages/missing",
       status: 404,

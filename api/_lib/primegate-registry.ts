@@ -12,6 +12,7 @@ import {
   encodePrimeGatePackageId,
   getPrimeGateRegistryFunctionId,
 } from "../../src/lib/primegate-registry-contract.js";
+import { readPrimeGateEnvValue } from "../../src/lib/primegate-env.js";
 
 const aptos = new Aptos(
   new AptosConfig({
@@ -35,8 +36,8 @@ function normalizeAddress(address: string) {
 
 export function getPrimeGateRegistryContractAddress() {
   return normalizeAddress(
-    process.env.PRIMEGATE_REGISTRY_ADDRESS?.trim() ||
-      process.env.VITE_PRIMEGATE_REGISTRY_ADDRESS?.trim() ||
+    readPrimeGateEnvValue(process.env.PRIMEGATE_REGISTRY_ADDRESS) ||
+      readPrimeGateEnvValue(process.env.VITE_PRIMEGATE_REGISTRY_ADDRESS) ||
       PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS,
   );
 }

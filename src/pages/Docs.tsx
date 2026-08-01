@@ -55,7 +55,7 @@ export default function Docs() {
       <PageHeader
         eyebrow="DOCUMENTATION"
         title="Documentation"
-        subtitle="PrimeGate exposes a single canonical flow for search, resolve, manifests, and downloads — across web, CLI, SDK, and MCP."
+        subtitle="PrimeGate exposes a single canonical flow for search, resolve, manifests, and downloads across web, CLI, SDK, and MCP."
       />
 
       <div className="rounded-lg border p-4 space-y-3">
@@ -88,9 +88,6 @@ export default function Docs() {
           <Link2 className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">HTTP Contract</h2>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Use the HTTP contract as the source of truth. Do not fetch Shelby blobs directly from clients.
-        </p>
         <div className="space-y-2">
           <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{searchSnippet}</div>
           <div className="rounded-md bg-secondary p-3 font-mono text-sm break-all">{resolveSnippet}</div>

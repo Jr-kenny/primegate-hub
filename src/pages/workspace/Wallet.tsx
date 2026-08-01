@@ -35,7 +35,7 @@ export default function WalletPage() {
     clearSession();
     toast({
       title: "Session cleared",
-      description: "The stored PrimeGate wallet session was removed from this browser.",
+      description: "The PrimeGate wallet session was cleared.",
     });
   };
 

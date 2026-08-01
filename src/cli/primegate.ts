@@ -9,7 +9,19 @@ import { PrimeGateClientError, createPrimeGateClient } from "../lib/primegate-cl
 import { formatPrimeGatePackageTypeLabel } from "../lib/primegate-package-type";
 import { normalizeAptAmount, parseAptAmountToOctas } from "../lib/aptos-amount";
 import { getPrimeGateTransactionOptions } from "../lib/aptos-gas";
+import { readPrimeGateEnvValue } from "../lib/primegate-env";
 import { normalizePrimeGatePackageSlug, normalizePrimeGateReleaseVersion } from "../lib/primegate-package";
+import {
+  createPrimeGateContentKey,
+  createPrimeGateContentNonce,
+  createPrimeGateEncryptedBytesStream,
+  encodePrimeGateBase64Url,
+  PRIMEGATE_CONTENT_ENCRYPTION_ALGORITHM,
+  PRIMEGATE_CONTENT_ENCRYPTION_CHUNK_SIZE,
+  PRIMEGATE_CONTENT_ENCRYPTION_HEADER_BYTES,
+  PRIMEGATE_CONTENT_ENCRYPTION_TAG_BYTES,
+  PRIMEGATE_CONTENT_ENCRYPTION_VERSION,
+} from "../lib/primegate-content-encryption";
 import {
   PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS,
   encodePrimeGatePackageId,
@@ -42,6 +54,7 @@ Usage:
   pnpm primegate search <query> [--base-url <url>] [--json]
   pnpm primegate resolve <package-id> [--base-url <url>] [--json] [--token <token>]
   pnpm primegate install <package-id> [--base-url <url>] [--output <dir>] [--json] [--token <token>]
+  pnpm primegate verify <package-id> [--base-url <url>] [--json] [--token <token>]
   pnpm primegate publish --manifest <path> [--base-url <url>] [--wallet <path>] [--wallets-dir <dir>] [--wallet-pattern <regex>] [--save <path>] [--resume <path>] [--continue-on-error] [--dry-run]
 
 Defaults:
@@ -168,6 +181,31 @@ function formatPackageIdentity(packageId: string, packageName: string, packageHa
   return packageHandle ? `${packageName} [${packageHandle}]` : `${packageName} [${packageId}]`;
 }
 
+async function readPrimeGateStream(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+
+  while (true) {
+    const next = await reader.read();
+    if (next.done) {
+      break;
+    }
+
+    chunks.push(next.value);
+    size += next.value.byteLength;
+  }
+
+  const output = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return output;
+}
+
 type PublishManifestItem = {
   description: string;
   filePath: string;
@@ -202,6 +240,8 @@ type PublishedAssetRecord = {
   packageHandle: string;
   packageSlug: string;
   price: number;
+  listingStatus?: "active" | "failed" | "pending";
+  listingError?: string | null;
   sizeBytes: number;
   title: string;
   version: string;
@@ -412,10 +452,12 @@ async function runPublish(options: CliOptions) {
   const manifestPath = options.manifest ?? "artifacts/manifest.json";
   const walletsDir = options.walletsDir ?? process.env.PRIMEGATE_PUBLISH_WALLETS_DIR ?? ".local";
   const walletPattern = options.walletPattern ?? process.env.PRIMEGATE_PUBLISH_WALLET_PATTERN ?? "^primegate-publisher-wallet-.*\\.json$";
-  const shelbyApiKey = process.env.VITE_SHELBY_API_KEY?.trim();
-  const shelbyRpcBaseUrl = process.env.VITE_SHELBY_RPC_BASE_URL?.trim() || DEFAULT_SHELBY_RPC_BASE_URL;
+  const shelbyApiKey = readPrimeGateEnvValue(process.env.VITE_SHELBY_API_KEY);
+  const shelbyRpcBaseUrl =
+    readPrimeGateEnvValue(process.env.VITE_SHELBY_RPC_BASE_URL) || DEFAULT_SHELBY_RPC_BASE_URL;
   const registryAddress =
-    process.env.VITE_PRIMEGATE_REGISTRY_ADDRESS?.trim() || PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS;
+    readPrimeGateEnvValue(process.env.VITE_PRIMEGATE_REGISTRY_ADDRESS) ||
+    PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS;
 
   if (!shelbyApiKey) {
     throw new Error("Missing VITE_SHELBY_API_KEY for Shelby uploads.");
@@ -528,11 +570,31 @@ async function runPublish(options: CliOptions) {
         token,
       );
 
+      const contentKey = createPrimeGateContentKey();
+      const encryptedAsset = await createPrimeGateEncryptedBytesStream(
+        fileBytes,
+        "asset",
+        contentKey,
+      );
+      const encryptedAssetBytes = await readPrimeGateStream(encryptedAsset.stream);
+      const manifestNonce = createPrimeGateContentNonce();
+
       const manifestPayload = {
         assetBlobName: publishIntent.assetBlobName,
         assetSha256,
         createdAt: publishIntent.createdAt,
         description: item.description,
+        encryption: {
+          algorithm: PRIMEGATE_CONTENT_ENCRYPTION_ALGORITHM,
+          asset: { nonce: encryptedAsset.nonce },
+          chunkSize: PRIMEGATE_CONTENT_ENCRYPTION_CHUNK_SIZE,
+          headerBytes: PRIMEGATE_CONTENT_ENCRYPTION_HEADER_BYTES,
+          manifest: { nonce: encodePrimeGateBase64Url(manifestNonce) },
+          tagBytes: PRIMEGATE_CONTENT_ENCRYPTION_TAG_BYTES,
+          version: PRIMEGATE_CONTENT_ENCRYPTION_VERSION,
+        },
+        keywords: [],
+        license: "Custom",
         manifestBlobName: publishIntent.manifestBlobName,
         mimeType,
         originalFileName,
@@ -541,6 +603,9 @@ async function runPublish(options: CliOptions) {
         priceApt: normalizedPrice,
         publishAttestation: publishIntent.attestationToken,
         publishIntentId: publishIntent.id,
+        readmeMarkdown: "",
+        releaseChannel: "latest",
+        releaseNotes: "",
         releaseVersion: normalizedVersion,
         sizeBytes: fileBytes.byteLength,
         source: "primegate",
@@ -549,12 +614,27 @@ async function runPublish(options: CliOptions) {
       } as const;
 
       const manifestBytes = new TextEncoder().encode(JSON.stringify(manifestPayload, null, 2));
+      const encryptedManifest = await createPrimeGateEncryptedBytesStream(
+        manifestBytes,
+        "manifest",
+        contentKey,
+        { nonce: manifestNonce },
+      );
+      const encryptedManifestBytes = await readPrimeGateStream(encryptedManifest.stream);
+
+      if (encryptedAssetBytes.byteLength !== encryptedAsset.ciphertextSize) {
+        throw new Error("PrimeGate encrypted asset size did not match the generated ciphertext.");
+      }
+
+      if (encryptedManifestBytes.byteLength !== encryptedManifest.ciphertextSize) {
+        throw new Error("PrimeGate encrypted manifest size did not match the generated ciphertext.");
+      }
       const expirationMicros = (Date.now() + 365 * 24 * 60 * 60 * 1000) * 1000;
 
       await withRetry(() =>
         shelbyClient.upload({
           signer: account,
-          blobData: fileBytes,
+          blobData: encryptedAssetBytes,
           blobName: publishIntent.assetBlobName,
           expirationMicros,
         }),
@@ -563,7 +643,7 @@ async function runPublish(options: CliOptions) {
       await withRetry(() =>
         shelbyClient.upload({
           signer: account,
-          blobData: manifestBytes,
+          blobData: encryptedManifestBytes,
           blobName: publishIntent.manifestBlobName,
           expirationMicros,
         }),
@@ -574,13 +654,16 @@ async function runPublish(options: CliOptions) {
         "/api/published-assets",
         {
           method: "POST",
-          body: JSON.stringify({ attestationToken: publishIntent.attestationToken }),
+          body: JSON.stringify({
+            assetEncryptionKey: encodePrimeGateBase64Url(contentKey),
+            attestationToken: publishIntent.attestationToken,
+          }),
         },
         token,
       );
 
       if (normalizedPrice !== "0") {
-        const listingOptions = await getPrimeGateTransactionOptions(aptos, 10_000);
+        const listingOptions = await getPrimeGateTransactionOptions(10_000);
         const listingTransaction = await aptos.transaction.build.simple({
           sender: account.accountAddress,
           data: {
@@ -598,6 +681,20 @@ async function runPublish(options: CliOptions) {
           transaction: listingTransaction,
         });
         await aptos.waitForTransaction({ transactionHash: pending.hash });
+
+        const syncedListing = await requestJson<PublishedAssetRecord>(
+          baseUrl,
+          "/api/published-assets?route=listing-status",
+          {
+            method: "POST",
+            body: JSON.stringify({ packageId: finalized.id }),
+          },
+          token,
+        );
+
+        if (syncedListing.listingStatus !== "active") {
+          throw new Error(syncedListing.listingError ?? "The on-chain listing could not be confirmed.");
+        }
       }
 
       published.push(finalized);
@@ -663,6 +760,10 @@ async function runResolve(packageId: string, options: CliOptions) {
   console.log(`Resolve: ${resolution.resolveUrl}`);
   console.log(`Access: ${resolution.access}`);
   console.log(`Price: ${resolution.price}`);
+  if (resolution.offer) {
+    console.log(`Offer: ${resolution.offer.name} (${resolution.offer.slug})`);
+    console.log(`License: ${resolution.offer.license}`);
+  }
 
   if (resolution.artifact) {
     console.log(
@@ -732,6 +833,43 @@ async function runInstall(packageId: string, options: CliOptions) {
   }
 }
 
+async function runVerify(packageId: string, options: CliOptions) {
+  const client = getClient(options);
+  const resolution = await client.resolvePackage(packageId);
+
+  if (!resolution.artifact || !resolution.downloadUrl || !resolution.artifact.assetSha256) {
+    throw new Error("PrimeGate did not expose an artifact hash for this caller.");
+  }
+
+  const artifact = await client.downloadArtifact(packageId);
+  const actualHash = `0x${createHash("sha256").update(Buffer.from(artifact.arrayBuffer)).digest("hex")}`;
+  const expectedHash = resolution.artifact.assetSha256.toLowerCase();
+  const result = {
+    artifact: resolution.artifact.originalFileName,
+    expectedSha256: expectedHash,
+    packageId: resolution.packageId,
+    packageHandle: resolution.packageHandle ?? null,
+    verified: actualHash === expectedHash,
+    actualSha256: actualHash,
+    version: resolution.version,
+  };
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log(`Package: ${formatPackageIdentity(resolution.packageId, resolution.packageName, resolution.packageHandle)}`);
+    console.log(`Version: ${resolution.version}`);
+    console.log(`Artifact: ${resolution.artifact.originalFileName}`);
+    console.log(`Expected SHA-256: ${expectedHash}`);
+    console.log(`Downloaded SHA-256: ${actualHash}`);
+    console.log(`Integrity: ${result.verified ? "verified" : "mismatch"}`);
+  }
+
+  if (!result.verified) {
+    throw new Error("Downloaded artifact hash does not match the PrimeGate release manifest.");
+  }
+}
+
 async function main() {
   const { options, positional } = parseArgs(process.argv.slice(2));
   const [command, ...rest] = positional;
@@ -767,6 +905,16 @@ async function main() {
     }
 
     await runInstall(packageId, options);
+    return;
+  }
+
+  if (command === "verify") {
+    const packageId = rest[0];
+    if (!packageId) {
+      throw new Error("verify requires a package id.");
+    }
+
+    await runVerify(packageId, options);
     return;
   }
 

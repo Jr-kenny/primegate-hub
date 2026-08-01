@@ -3,11 +3,17 @@ import { getAuthenticatedWallet } from "./auth.js";
 import {
   getCatalogPurchaseTarget,
   getPackage,
+  getPublishedAssetAccess,
   getPublishedAssetById,
+  getPublishedAssetOffer,
   listEntitlements,
 } from "./catalog.js";
 import {
-  readPublishedAssetBytes,
+  assertPrimeGateContentEncryptionManifest,
+  unwrapPrimeGateContentKey,
+} from "./content-encryption.js";
+import {
+  openPublishedAssetStream,
   readPublishedManifest,
   type PrimeGatePublishedManifest,
 } from "./publishing.js";
@@ -16,6 +22,7 @@ import {
   hasPrimeGateRegistryPurchase,
 } from "./primegate-registry.js";
 import { toAbsoluteUrl } from "./request.js";
+import type { PrimeGateContentEncryptionManifest } from "../../src/lib/primegate-content-encryption.js";
 
 function buildResolvePath(packageId: string) {
   return `/api/packages/${encodeURIComponent(packageId)}/resolve`;
@@ -40,6 +47,56 @@ function buildInstallSnippets(packageId: string, packageName: string) {
 
 function isFreePrice(price: string) {
   return price.trim().toLowerCase() === "free";
+}
+
+type PublishedAssetByteRange = {
+  end: number;
+  start: number;
+};
+
+function parseByteRangeHeader(header: string | null, totalSizeBytes: number) {
+  if (!header) {
+    return null;
+  }
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match || totalSizeBytes <= 0) {
+    return "invalid" as const;
+  }
+
+  const [, startText, endText] = match;
+  if (!startText && !endText) {
+    return "invalid" as const;
+  }
+
+  if (!startText) {
+    const suffixLength = Number(endText);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) {
+      return "invalid" as const;
+    }
+
+    return {
+      end: totalSizeBytes - 1,
+      start: Math.max(totalSizeBytes - suffixLength, 0),
+    } satisfies PublishedAssetByteRange;
+  }
+
+  const start = Number(startText);
+  const requestedEnd = endText ? Number(endText) : totalSizeBytes - 1;
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(requestedEnd) ||
+    start < 0 ||
+    requestedEnd < start ||
+    start >= totalSizeBytes
+  ) {
+    return "invalid" as const;
+  }
+
+  return {
+    end: Math.min(requestedEnd, totalSizeBytes - 1),
+    start,
+  } satisfies PublishedAssetByteRange;
 }
 
 async function hasPackageEntitlement(request: Request, packageId: string) {
@@ -82,6 +139,31 @@ function purchaseTargetAmountApt(amountOctas: string) {
   return fractional ? `${whole}.${fractional}` : whole.toString();
 }
 
+async function getPublishedAssetDecryptionContext(packageId: string) {
+  const access = await getPublishedAssetAccess(packageId);
+
+  if (!access || (!access.contentKeyEnvelope && !access.encryptionJson)) {
+    return null;
+  }
+
+  if (!access.contentKeyEnvelope || !access.encryptionJson) {
+    throw new Error("PrimeGate release encryption record is incomplete.");
+  }
+
+  let encryption: PrimeGateContentEncryptionManifest;
+  try {
+    encryption = JSON.parse(access.encryptionJson) as PrimeGateContentEncryptionManifest;
+    assertPrimeGateContentEncryptionManifest(encryption);
+  } catch {
+    throw new Error("PrimeGate release encryption metadata is invalid.");
+  }
+
+  return {
+    contentKey: unwrapPrimeGateContentKey(access.contentKeyEnvelope),
+    encryption,
+  };
+}
+
 export async function getPackageResolution(
   request: Request,
   packageId: string,
@@ -116,6 +198,12 @@ export async function getPackageResolution(
             }
           : null;
   const claims = getAuthenticatedWallet(request);
+  const offer =
+    publishedAsset && purchaseTarget?.kind === "published-asset"
+      ? purchaseTarget.offer
+      : publishedAsset
+        ? await getPublishedAssetOffer(packageId)
+        : null;
   const entitled =
     publishedAsset && payment
       ? claims
@@ -134,6 +222,7 @@ export async function getPackageResolution(
       install,
       manifestPath: null,
       manifestUrl: null,
+      offer: null,
       packageHandle: pkg.packageHandle ?? null,
       packageId: pkg.id,
       packageName: pkg.name,
@@ -149,12 +238,29 @@ export async function getPackageResolution(
   const downloadPath = buildDownloadPath(pkg.id);
   const manifestUrl = toAbsoluteUrl(request, manifestPath);
   const downloadUrl = toAbsoluteUrl(request, downloadPath);
+  const decryptionContext = entitled
+    ? await getPublishedAssetDecryptionContext(packageId)
+    : null;
   let manifest: PrimeGatePublishedManifest | null = null;
 
-  try {
-    manifest = await readPublishedManifest(publishedAsset.ownerAddress, publishedAsset.manifestBlobName);
-  } catch {
-    manifest = null;
+  if (entitled) {
+    try {
+      manifest = await readPublishedManifest(
+        publishedAsset.ownerAddress,
+        publishedAsset.manifestBlobName,
+        decryptionContext
+          ? {
+              contentKey: decryptionContext.contentKey,
+              expectedEncryption: decryptionContext.encryption,
+            }
+          : undefined,
+      );
+    } catch (error) {
+      if (publishedAsset.encrypted) {
+        throw error;
+      }
+      manifest = null;
+    }
   }
 
   return {
@@ -162,8 +268,9 @@ export async function getPackageResolution(
     artifact: entitled
       ? {
           assetBlobName: publishedAsset.assetBlobName,
-          assetSha256: manifest?.assetSha256,
+          assetSha256: manifest?.assetSha256 ?? publishedAsset.assetSha256 ?? undefined,
           createdAt: publishedAsset.createdAt,
+          encrypted: publishedAsset.encrypted,
           downloadPath,
           downloadUrl,
           manifestBlobName: publishedAsset.manifestBlobName,
@@ -181,6 +288,7 @@ export async function getPackageResolution(
     install,
     manifestPath: entitled ? manifestPath : null,
     manifestUrl: entitled ? manifestUrl : null,
+    offer,
     packageHandle: pkg.packageHandle ?? null,
     packageId: pkg.id,
     packageName: pkg.name,
@@ -200,7 +308,25 @@ export async function getPublishedPackageManifest(request: Request, packageId: s
     return null;
   }
 
-  return readPublishedManifest(publishedAsset.ownerAddress, publishedAsset.manifestBlobName);
+  const decryptionContext = await getPublishedAssetDecryptionContext(packageId);
+  const manifest = await readPublishedManifest(
+    publishedAsset.ownerAddress,
+    publishedAsset.manifestBlobName,
+    decryptionContext
+      ? {
+          contentKey: decryptionContext.contentKey,
+          expectedEncryption: decryptionContext.encryption,
+        }
+      : undefined,
+  );
+
+  return {
+    cacheControl: resolution.access === "public" ? "public, max-age=60" : "private, no-store",
+    manifest: {
+      ...manifest,
+      assetSha256: publishedAsset.assetSha256 ?? manifest.assetSha256,
+    },
+  };
 }
 
 export async function downloadPublishedPackageArtifact(request: Request, packageId: string) {
@@ -211,14 +337,40 @@ export async function downloadPublishedPackageArtifact(request: Request, package
     return null;
   }
 
-  const assetBytes = await readPublishedAssetBytes(
+  const range = parseByteRangeHeader(request.headers.get("range"), publishedAsset.sizeBytes);
+  if (range === "invalid") {
+    return {
+      body: null,
+      cacheControl: resolution.access === "public" ? "public, max-age=60" : "private, no-store",
+      contentRange: `bytes */${publishedAsset.sizeBytes}`,
+      mimeType: publishedAsset.mimeType,
+      originalFileName: publishedAsset.originalFileName,
+      sizeBytes: 0,
+      status: 416 as const,
+    };
+  }
+
+  const decryptionContext = await getPublishedAssetDecryptionContext(packageId);
+  const assetStream = await openPublishedAssetStream(
     publishedAsset.ownerAddress,
     publishedAsset.assetBlobName,
+    range ?? undefined,
+    decryptionContext
+      ? {
+          contentKey: decryptionContext.contentKey,
+          encryption: decryptionContext.encryption,
+          expectedPlaintextSize: publishedAsset.sizeBytes,
+        }
+      : undefined,
   );
 
   return {
-    bytes: assetBytes,
+    body: assetStream,
+    cacheControl: resolution.access === "public" ? "public, max-age=60" : "private, no-store",
+    contentRange: range ? `bytes ${range.start}-${range.end}/${publishedAsset.sizeBytes}` : null,
     mimeType: publishedAsset.mimeType,
     originalFileName: publishedAsset.originalFileName,
+    sizeBytes: range ? range.end - range.start + 1 : publishedAsset.sizeBytes,
+    status: range ? (206 as const) : (200 as const),
   };
 }

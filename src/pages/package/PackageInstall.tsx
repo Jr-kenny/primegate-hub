@@ -190,6 +190,21 @@ export default function PackageInstall() {
                 </p>
               </div>
             )}
+            {resolution.offer && (
+              <div className="rounded-md border p-3 space-y-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Offer</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">{resolution.offer.name}</p>
+                  <p className="text-sm font-medium">
+                    {resolution.offer.price === "0" ? "Free" : `${resolution.offer.price} APT`}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">{resolution.offer.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  License: {resolution.offer.license} · Updates: {resolution.offer.updatePolicy.replace("-", " ")}
+                </p>
+              </div>
+            )}
             {purchase?.paymentTxHash && (
               <div className="rounded-md border p-3 space-y-2">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">On-Chain Receipt</p>
@@ -234,6 +249,11 @@ export default function PackageInstall() {
                   <p className="text-xs text-muted-foreground break-all">
                     {resolution.artifact.assetBlobName}
                   </p>
+                  {resolution.artifact.assetSha256 && (
+                    <p className="text-xs text-muted-foreground break-all">
+                      SHA-256: {resolution.artifact.assetSha256}
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-md border p-3 space-y-2">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Artifact Access</p>

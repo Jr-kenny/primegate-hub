@@ -1,10 +1,14 @@
 time,latitude,longitude,depth,mag,magType,nst,gap,dmin,rms,net,id,updated,place,type,horizontalError,depthError,magError,magNst,status,locationSource,magSource
-2026-04-02T08:41:25.520Z,37.115666666667,-122.1125,10.43,4.59,mw,173,67,0.03446,0.19,nc,nc75337442,2026-04-09T08:51:35.799Z,"1 km SE of Boulder Creek, CA",earthquake,0.16,0.32,,15,reviewed,nc,nc
-2026-04-01T22:48:13.172Z,1.1171,126.2965,35,7.4,mww,189,17,5.956,1.1,us,us6000slss,2026-04-04T13:01:27.878Z,"126 km WNW of Ternate, Indonesia",earthquake,3.81,2.801,0.033,89,reviewed,us,us
-2026-03-30T08:44:13.823Z,-15.3139,167.5616,121.28,7.3,mww,181,25,0.37,0.89,us,us7000s8q0,2026-03-31T09:13:22.522Z,"48 km ENE of Luganville, Vanuatu",earthquake,9.79,4.133,0.034,85,reviewed,us,us
-2026-03-26T14:18:50.947Z,39.4462,143.3717,9.513,6.5,mww,121,45,2.22,0.82,us,us7000s7u4,2026-03-27T14:47:28.298Z,"122 km E of Yamada, Japan",earthquake,6.84,4.17,0.038,66,reviewed,us,us
-2026-03-24T04:37:50.555Z,-18.6678,-175.5601,229.453,7.5,mww,147,21,5.349,0.93,us,us7000s789,2026-03-27T18:51:18.724Z,"166 km W of Neiafu, Tonga",earthquake,8.64,4.314,0.028,119,reviewed,us,us
-2026-03-22T15:30:37.033Z,-15.2263,-172.6832,10,6.3,mww,9,127,1.574,1.12,us,us6000sii1,2026-03-24T04:51:55.846Z,"144 km NE of Hihifo, Tonga",earthquake,4.95,1.948,0.06,27,reviewed,us,us
-2026-03-21T12:16:46.629Z,23.8601,-45.7987,10,6.6,mww,128,31,16.164,0.58,us,us6000si5l,2026-04-03T05:33:00.460Z,"northern Mid-Atlantic Ridge",earthquake,9.57,1.858,0.054,33,reviewed,us,us
-2026-03-20T00:22:02.120Z,-61.1525,-56.2683,4.869,6.6,mww,58,76,8.393,0.93,us,us6000shlp,2026-03-21T00:46:45.373Z,"South Shetland Islands",earthquake,8.26,4.144,0.059,28,reviewed,us,us
-2026-03-13T13:39:21.201Z,-28.6929,-71.4786,24,6.3,mww,82,133,0.603,0.87,us,us6000sg0y,2026-04-07T14:00:51.484Z,"71 km W of Vallenar, Chile",earthquake,4.56,1.849,0.047,44,reviewed,us,us
+2026-07-28T07:27:15.512Z,32.6817,130.7217,10,6.8,mww,102,39,1.191,1.38,us,us6000tgb9,2026-08-01T08:23:39.301Z,"2026 Uto, Japan Earthquake ",earthquake,5.42,1.822,0.046,45,reviewed,us,us
+2026-07-28T03:34:05.779Z,35.3866,99.5513,10,5.8,mww,107,33,3.422,0.67,us,us6000tga9,2026-07-29T03:42:43.213Z,"191 km NW of Oula Xiuma, China",earthquake,8.15,1.85,0.073,18,reviewed,us,us
+2026-07-28T03:16:08.857Z,35.3685,99.5198,10,5.7,mww,136,47,3.45,0.76,us,us6000tga6,2026-07-29T03:24:38.808Z,"192 km NW of Oula Xiuma, China",earthquake,8.41,1.814,0.06,27,reviewed,us,us
+2026-07-23T10:21:43.909Z,35.902,-100.976,5.6885,5,ml,14,71,0.4,0.3,tx,tx2026ojlaky,2026-07-31T10:31:55.345Z,"38 km SSE of Spearman, Texas",earthquake,1.2286400847808,1.3921747366366,0.2,12,reviewed,tx,tx
+2026-07-19T02:24:35.623Z,-12.1036,-75.3034,10,5.5,mww,201,32,1.51,0.63,us,us7000t1q7,2026-07-21T21:07:16.191Z,"4 km SSW of Chupaca, Peru",earthquake,7.28,1.444,0.059,28,reviewed,us,us
+2026-07-17T15:20:06.414Z,14.216,-93.2025,10,6.4,mww,84,61,3.336,1.37,us,us7000t1cc,2026-07-31T19:19:08.148Z,"101 km WSW of Puerto Madero, Mexico",earthquake,7.52,2.558,0.032,93,reviewed,us,us
+2026-07-17T14:48:40.227Z,14.6361,-92.8969,22,7.3,mww,249,51,3.109,1.09,us,us7000t1bu,2026-07-27T19:02:20.562Z,"52 km W of Puerto Madero, Mexico",earthquake,7.53,1.812,0.025,157,reviewed,us,us
+2026-07-14T15:49:39.282Z,5.3226,125.1801,46.427,6.2,mww,271,23,1.78,0.6,us,us7000t0d0,2026-07-29T12:02:33.721Z,"32 km WSW of Sarangani, Philippines",earthquake,7.86,4.005,0.042,55,reviewed,us,us
+2026-07-13T16:40:55.170Z,35.312166666667,-117.81483333333,7.55,4.3176267788869,mw,81,22,0.05134,0.15,ci,ci41292687,2026-07-29T16:51:00.666Z,"18 km WSW of Johannesburg, CA",earthquake,0.12,0.46,,7,reviewed,ci,ci
+2026-07-13T14:45:49.630Z,-22.7876,171.5534,16,6.3,mww,125,39,3.796,0.71,us,us7000t01n,2026-07-23T15:31:52.051Z,"southeast of the Loyalty Islands",earthquake,9.69,1.734,0.034,83,reviewed,us,us
+2026-07-13T08:53:27.913Z,-3.2207,148.5218,10,6.4,mww,81,48,1.643,0.81,us,us7000szzy,2026-07-14T10:00:55.147Z,"191 km SE of Lorengau, Papua New Guinea",earthquake,7.13,1.854,0.048,41,reviewed,us,us
+2026-07-12T10:38:04.730Z,34.813166666667,-118.92583333333,13.09,4.1092288867032,mw,123,25,0.04811,0.31,ci,ci41291863,2026-07-31T10:48:12.686Z,"2 km ESE of Frazier Park, CA",earthquake,0.19,0.4,,17,reviewed,ci,ci
+2026-07-11T10:26:42.630Z,-55.5349,-28.9109,26,6.4,mww,90,57,4.549,0.79,us,us7000szpb,2026-07-25T11:14:19.914Z,"South Sandwich Islands region",earthquake,10.06,1.882,0.057,30,reviewed,us,us

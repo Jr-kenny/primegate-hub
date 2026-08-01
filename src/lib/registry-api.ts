@@ -13,8 +13,22 @@ import type {
   PrimeGatePurchaseRecord,
 } from "@/lib/registry-state";
 import { getPrimeGateSessionToken, type PrimeGateSession } from "@/services/auth";
-import type { AptosSignInInput } from "@aptos-labs/wallet-standard";
 import type { SerializedAptosSignInOutput } from "@aptos-labs/siwa";
+
+type AptosSignInInput = {
+  domain: string;
+  nonce: string;
+  address?: string;
+  chainId?: string;
+  expirationTime?: string;
+  issuedAt?: string;
+  notBefore?: string;
+  requestId?: string;
+  resources?: string[];
+  statement?: string;
+  uri?: string;
+  version?: string;
+};
 
 type ApiEnvelope<T> = {
   data: T;
@@ -43,12 +57,17 @@ type WalletMessageChallenge = {
 };
 
 type CreatePublishIntentPayload = {
-  assetSha256: string;
+  assetSha256?: string;
   description: string;
+  keywords?: string[];
+  license?: string;
   mimeType: string;
   originalFileName: string;
   packageSlug: string;
   priceApt: string;
+  readmeMarkdown?: string;
+  releaseChannel?: string;
+  releaseNotes?: string;
   releaseVersion: string;
   sizeBytes: number;
   title: string;
@@ -65,6 +84,7 @@ type PublishIntentResponse = {
 };
 
 type FinalizePublishedAssetPayload = {
+  assetEncryptionKey: string;
   attestationToken: string;
 };
 
@@ -319,16 +339,27 @@ export function verifyWalletMessageSessionSignature(payload: VerifyWalletMessage
   });
 }
 
+export function logoutPrimeGateSession() {
+  return requestJson<boolean>("/api/auth/logout", {
+    method: "POST",
+  });
+}
+
 export function requestPublishIntent(payload: CreatePublishIntentPayload) {
   return requestJson<PublishIntentResponse>("/api/publish-intent", {
     body: JSON.stringify(payload),
     method: "POST",
   }, {
     assetSha256: payload.assetSha256,
+    keywords: payload.keywords,
+    license: payload.license,
     mimeType: payload.mimeType,
     originalFileName: payload.originalFileName,
     packageSlug: payload.packageSlug,
     priceApt: payload.priceApt,
+    readmeMarkdown: payload.readmeMarkdown,
+    releaseChannel: payload.releaseChannel,
+    releaseNotes: payload.releaseNotes,
     releaseVersion: payload.releaseVersion,
     sizeBytes: payload.sizeBytes,
     title: payload.title,
@@ -340,6 +371,16 @@ export function finalizePublishedAsset(payload: FinalizePublishedAssetPayload) {
     body: JSON.stringify(payload),
     method: "POST",
   }, {
+    hasAssetEncryptionKey: Boolean(payload.assetEncryptionKey),
     hasAttestationToken: Boolean(payload.attestationToken),
+  });
+}
+
+export function syncPublishedAssetListing(packageId: string) {
+  return requestJson<PrimeGatePublishedAssetRecord>("/api/published-assets?route=listing-status", {
+    body: JSON.stringify({ packageId }),
+    method: "POST",
+  }, {
+    packageId,
   });
 }

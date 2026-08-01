@@ -7,6 +7,7 @@ export type RegistryReview = {
 };
 
 export type RegistryVersion = {
+  channel?: string;
   id?: string;
   version: string;
   notes: string;
@@ -19,6 +20,7 @@ export type RegistryPackageArtifact = {
   assetSha256?: string;
   createdAt: string;
   downloadPath: string;
+  encrypted: boolean;
   downloadUrl: string;
   manifestBlobName: string;
   manifestPath: string;
@@ -28,6 +30,18 @@ export type RegistryPackageArtifact = {
   ownerAddress: string;
   sizeBytes: number;
   storage: "shelby";
+};
+
+export type RegistryPackageOffer = {
+  id: string | null;
+  slug: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: "APT";
+  license: string;
+  updatePolicy: "release-only" | "patches" | "minor" | "lifetime";
+  includedArtifacts: string[];
 };
 
 export type RegistryPackagePayment = {
@@ -51,6 +65,7 @@ export type RegistryPackageResolution = {
   };
   manifestPath: string | null;
   manifestUrl: string | null;
+  offer: RegistryPackageOffer | null;
   packageHandle?: string | null;
   packageId: string;
   packageName: string;
@@ -68,6 +83,10 @@ export type RegistryPackage = {
   packageSlug?: string;
   createdAt?: string;
   description: string;
+  keywords?: string[];
+  readmeMarkdown?: string;
+  releaseChannel?: string;
+  releaseNotes?: string;
   publisher: string;
   type: string;
   installs: number;
@@ -78,6 +97,7 @@ export type RegistryPackage = {
   license: string;
   runtime: string;
   chain: string;
+  offer?: RegistryPackageOffer;
   releaseCount?: number;
   publisherSummary: string;
   publisherPackageCount: number;

@@ -20,6 +20,7 @@ import { normalizeAptAmount } from "@/lib/aptos-amount";
 import {
   normalizePrimeGatePackageSlug,
   normalizePrimeGateReleaseVersion,
+  PRIMEGATE_RELEASE_CHANNELS,
 } from "@/lib/primegate-package";
 
 type PricingMode = "free" | "paid";
@@ -51,6 +52,11 @@ export default function Publish() {
   const [packageSlugDirty, setPackageSlugDirty] = useState(false);
   const [releaseVersion, setReleaseVersion] = useState("1.0.0");
   const [description, setDescription] = useState("");
+  const [license, setLicense] = useState("Custom");
+  const [keywords, setKeywords] = useState("");
+  const [readmeMarkdown, setReadmeMarkdown] = useState("");
+  const [releaseNotes, setReleaseNotes] = useState("");
+  const [releaseChannel, setReleaseChannel] = useState("latest");
   const [pricingMode, setPricingMode] = useState<PricingMode>("free");
   const [price, setPrice] = useState("0");
   const [file, setFile] = useState<File | null>(null);
@@ -171,8 +177,16 @@ export default function Publish() {
       const result = await publishAsset({
         description,
         file,
+        keywords: keywords
+          .split(",")
+          .map((keyword) => keyword.trim())
+          .filter(Boolean),
+        license,
         packageSlug,
         priceApt: normalizedPriceApt,
+        readmeMarkdown,
+        releaseChannel,
+        releaseNotes,
         releaseVersion,
         title,
       });
@@ -182,6 +196,11 @@ export default function Publish() {
       setPackageSlugDirty(false);
       setReleaseVersion("1.0.0");
       setDescription("");
+      setLicense("Custom");
+      setKeywords("");
+      setReadmeMarkdown("");
+      setReleaseNotes("");
+      setReleaseChannel("latest");
       setPricingMode("free");
       setPrice("0");
       setFile(null);
@@ -348,6 +367,68 @@ export default function Publish() {
               onChange={(event) => setDescription(event.target.value)}
               rows={5}
               placeholder="What this package contains, who it is for, and how it should be used."
+            />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="publish-license">License</Label>
+              <Input
+                id="publish-license"
+                value={license}
+                onChange={(event) => setLicense(event.target.value)}
+                placeholder="MIT, Apache-2.0, or Custom"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="publish-keywords">Keywords</Label>
+              <Input
+                id="publish-keywords"
+                value={keywords}
+                onChange={(event) => setKeywords(event.target.value)}
+                placeholder="ai, dataset, agents"
+              />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Release Channel</Label>
+              <Select value={releaseChannel} onValueChange={setReleaseChannel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIMEGATE_RELEASE_CHANNELS.map((channel) => (
+                    <SelectItem key={channel} value={channel}>
+                      {channel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="publish-release-notes">Release Notes</Label>
+              <Textarea
+                id="publish-release-notes"
+                value={releaseNotes}
+                onChange={(event) => setReleaseNotes(event.target.value)}
+                rows={3}
+                placeholder="What changed in this release?"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="publish-readme">README</Label>
+            <Textarea
+              id="publish-readme"
+              value={readmeMarkdown}
+              onChange={(event) => setReadmeMarkdown(event.target.value)}
+              rows={6}
+              placeholder="# Package name\n\nInstallation and usage notes."
             />
           </div>
 

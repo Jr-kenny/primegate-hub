@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/auth/logout",
+      "destination": "/api/auth-router?route=logout"
+    },
+    {
       "source": "/api/auth/message/nonce",
       "destination": "/api/auth-router?route=message-nonce"
     },
@@ -75,6 +79,10 @@
     {
       "source": "/api/packages",
       "destination": "/api/packages-router?route=index"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
     }
   ]
 }

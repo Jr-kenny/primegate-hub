@@ -266,6 +266,11 @@ export function usePrimeGateRegistry() {
           grantedAt: persistedPurchase.purchasedAt,
           packageId: persistedPurchase.packageId,
           packageName: persistedPurchase.packageName,
+          offerId: persistedPurchase.offerId,
+          offerName: persistedPurchase.offerName,
+          offerSlug: persistedPurchase.offerSlug,
+          offerLicense: persistedPurchase.offerLicense,
+          offerUpdatePolicy: persistedPurchase.offerUpdatePolicy,
           source: "purchase",
           walletAddress: persistedPurchase.walletAddress,
         });

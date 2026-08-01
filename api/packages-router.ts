@@ -16,10 +16,20 @@ function getPackageId(request: Request) {
 }
 
 function buildContentDisposition(fileName: string) {
-  const encodedFileName = encodeURIComponent(fileName).replace(/['()]/g, (character) =>
+  const safeFileName =
+    Array.from(fileName, (character) => {
+      const codePoint = character.charCodeAt(0);
+      return codePoint <= 31 || codePoint === 127 || character === '"' || character === "\\"
+        ? "_"
+        : character;
+    })
+      .join("")
+      .trim()
+      .slice(0, 255) || "primegate-download";
+  const encodedFileName = encodeURIComponent(safeFileName).replace(/['()]/g, (character) =>
     `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
   );
-  return `attachment; filename="${fileName.replace(/"/g, "")}"; filename*=UTF-8''${encodedFileName}`;
+  return `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodedFileName}`;
 }
 
 async function getPackages() {
@@ -70,14 +80,35 @@ async function getPackageDownload(request: Request) {
       return errorResponse("This package does not expose a downloadable published artifact.", 404);
     }
 
-    return new Response(artifact.bytes, {
-      headers: {
-        "Cache-Control": "public, max-age=60",
-        "Content-Disposition": buildContentDisposition(artifact.originalFileName),
-        "Content-Length": String(artifact.bytes.byteLength),
-        "Content-Type": artifact.mimeType || "application/octet-stream",
-      },
-      status: 200,
+    if (artifact.status === 416) {
+      return new Response(null, {
+        headers: {
+          "Accept-Ranges": "bytes",
+          "Cache-Control": artifact.cacheControl,
+          "Content-Range": artifact.contentRange,
+          "Content-Length": "0",
+          "X-Content-Type-Options": "nosniff",
+        },
+        status: 416,
+      });
+    }
+
+    const headers = new Headers({
+      "Accept-Ranges": "bytes",
+      "Cache-Control": artifact.cacheControl,
+      "Content-Disposition": buildContentDisposition(artifact.originalFileName),
+      "Content-Length": String(artifact.sizeBytes),
+      "Content-Type": artifact.mimeType || "application/octet-stream",
+      "X-Content-Type-Options": "nosniff",
+    });
+
+    if (artifact.contentRange) {
+      headers.set("Content-Range", artifact.contentRange);
+    }
+
+    return new Response(artifact.body, {
+      headers,
+      status: artifact.status,
     });
   } catch (error) {
     console.error("GET /api/packages/[id]/download failed", error);
@@ -104,7 +135,7 @@ async function getPackageManifest(request: Request) {
       return errorResponse("This package does not expose a downloadable published manifest.", 404);
     }
 
-    return jsonResponse({ data: manifest });
+    return jsonResponse({ data: manifest.manifest }, undefined, manifest.cacheControl);
   } catch (error) {
     console.error("GET /api/packages/[id]/manifest failed", error);
     return jsonResponse(
@@ -125,7 +156,11 @@ async function getPackageResolve(request: Request) {
     }
 
     const resolution = await getPackageResolution(request, id);
-    return jsonResponse({ data: resolution });
+    return jsonResponse(
+      { data: resolution },
+      undefined,
+      resolution.access === "public" ? "public, max-age=30" : "private, no-store",
+    );
   } catch (error) {
     console.error("GET /api/packages/[id]/resolve failed", error);
     return jsonResponse(

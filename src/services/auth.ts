@@ -12,18 +12,6 @@ function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-function isPrimeGateSession(value: unknown): value is PrimeGateSession {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      "expiresAt" in value &&
-      "keyType" in value &&
-      "publicKeyHex" in value &&
-      "token" in value &&
-      "walletAddress" in value,
-  );
-}
-
 export function bytesToHex(bytes: Uint8Array) {
   const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
   return `0x${hex}`;
@@ -39,25 +27,16 @@ export function getStoredPrimeGateSession() {
     return null;
   }
 
-  const rawValue = window.localStorage.getItem(PRIMEGATE_SESSION_KEY);
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    const parsedValue = JSON.parse(rawValue);
-    return isPrimeGateSession(parsedValue) ? parsedValue : null;
-  } catch {
-    return null;
-  }
+  window.localStorage.removeItem(PRIMEGATE_SESSION_KEY);
+  return null;
 }
 
-export function persistPrimeGateSession(session: PrimeGateSession) {
+export function persistPrimeGateSession(_session: PrimeGateSession) {
   if (!canUseStorage()) {
     return;
   }
 
-  window.localStorage.setItem(PRIMEGATE_SESSION_KEY, JSON.stringify(session));
+  window.localStorage.removeItem(PRIMEGATE_SESSION_KEY);
 }
 
 export function clearPrimeGateSession() {

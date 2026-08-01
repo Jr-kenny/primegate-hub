@@ -21,6 +21,9 @@ export default function Purchases() {
                   <p className="text-xs text-muted-foreground">{purchase.publisher}</p>
                 </div>
                 <p className="text-sm font-medium">{purchase.price}</p>
+                <p className="text-xs text-muted-foreground">
+                  {purchase.offerName} · {purchase.offerLicense}
+                </p>
               </div>
               {purchase.paymentTxHash && (
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
