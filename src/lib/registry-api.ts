@@ -85,6 +85,28 @@ type PublishIntentResponse = {
   billing: PrimeGatePublisherBillingSummary;
 };
 
+export type PrimeGateShelbySponsorConfig = {
+  enabled: boolean;
+  sponsorAddress: string | null;
+};
+
+type PrimeGateShelbySponsorSubmission =
+  | {
+      attestationToken: string;
+      operation: "shelby-registration";
+      senderAuthenticatorHex: string;
+      transactionHex: string;
+      walletAddress: string;
+    }
+  | {
+      expectedPackageId: string;
+      expectedPriceOctas: string;
+      operation: "primegate-listing";
+      senderAuthenticatorHex: string;
+      transactionHex: string;
+      walletAddress: string;
+    };
+
 type FinalizePublishedAssetPayload = {
   assetEncryptionKey: string;
   attestationToken: string;
@@ -369,6 +391,23 @@ export function requestPublishIntent(payload: CreatePublishIntentPayload) {
     releaseVersion: payload.releaseVersion,
     sizeBytes: payload.sizeBytes,
     title: payload.title,
+  });
+}
+
+export function fetchPrimeGateShelbySponsorConfig() {
+  return requestJson<PrimeGateShelbySponsorConfig>("/api/shelby-sponsor/config");
+}
+
+export function submitPrimeGateShelbySponsorTransaction(payload: PrimeGateShelbySponsorSubmission) {
+  return requestJson<{ hash: string }>("/api/shelby-sponsor/submit", {
+    body: JSON.stringify(payload),
+    method: "POST",
+  }, {
+    hasAttestationToken: "attestationToken" in payload && Boolean(payload.attestationToken),
+    operation: payload.operation,
+    senderAuthenticatorLength: payload.senderAuthenticatorHex.length,
+    transactionLength: payload.transactionHex.length,
+    walletAddress: payload.walletAddress,
   });
 }
 

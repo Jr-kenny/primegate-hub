@@ -27,11 +27,15 @@ PrimeGate puts those pieces behind one registry. A publisher can upload an artif
 | Shelby | Hot storage for encrypted artifact and manifest bytes |
 | Neon Postgres | Catalog state, publish intents, key envelopes, offers, purchases, installs, reviews, and publisher usage |
 | Aptos | Wallet authentication, Shelby registration, and paid listing settlement |
+| Render transaction submitter | Server-side sponsor signing and submission for approved publisher transactions |
 
 ```mermaid
 flowchart LR
   publisher[Publisher browser] -->|wallet auth + publish intent| primegate[PrimeGate]
   publisher -->|encrypted asset + manifest| shelby[(Shelby hot storage)]
+  publisher -->|publisher signature| submitter[Render transaction submitter]
+  submitter -->|sponsor signature + submit| aptos[(Aptos testnet)]
+  primegate -->|allow-listed intent + session check| submitter
   primegate -->|release metadata + key envelope| neon[(Neon Postgres)]
   consumer[Consumer or agent] -->|resolve + install| primegate
   primegate -->|access check + range read| shelby
@@ -44,11 +48,12 @@ flowchart LR
 1. A publisher connects an Aptos wallet and signs a PrimeGate session.
 2. PrimeGate checks the publisher's hybrid plan and reserves the requested publish bytes before creating an intent that binds the publisher, package slug, SemVer version, release channel, offer, and artifact attestation.
 3. The browser encrypts the artifact and manifest into chunked AES-256-GCM ciphertext before uploading them to Shelby. The CLI follows the same format.
-4. Shelby registers the encrypted blobs under opaque PrimeGate-controlled names. The original file name and package slug are kept in the manifest and catalog, not in the Shelby object path.
-5. PrimeGate reads the uploaded ciphertext back from Shelby, decrypts it incrementally, and verifies the plaintext size and SHA-256 against the publish intent.
-6. The API wraps the release key with `PRIMEGATE_CONTENT_KEY_SECRET` and stores the envelope with the release metadata in Neon. The raw content key is never stored in the catalog.
-7. A consumer resolves the package through PrimeGate. The response includes the release, offer, access state, and install paths.
-8. The download endpoint checks the release access rule, reads the required range from Shelby, decrypts the selected chunks, verifies the plaintext stream, and returns it through PrimeGate.
+4. PrimeGate prepares the Shelby registration transaction. The publisher signs it in the browser, and the Render transaction submitter adds the PrimeGate sponsor signature and pays the Aptos and ShelbyUSD release fees when sponsorship is configured.
+5. Shelby registers the encrypted blobs under opaque PrimeGate-controlled names. The original file name and package slug are kept in the manifest and catalog, not in the Shelby object path.
+6. PrimeGate reads the uploaded ciphertext back from Shelby, decrypts it incrementally, and verifies the plaintext size and SHA-256 against the publish intent.
+7. The API wraps the release key with `PRIMEGATE_CONTENT_KEY_SECRET` and stores the envelope with the release metadata in Neon. The raw content key is never stored in the catalog.
+8. A consumer resolves the package through PrimeGate. The response includes the release, offer, access state, and install paths.
+9. The download endpoint checks the release access rule, reads the required range from Shelby, decrypts the selected chunks, verifies the plaintext stream, and returns it through PrimeGate.
 
 Publisher usage is recorded separately from package sales. The default plan includes a configurable monthly publish allowance and delivery allowance. Prepaid credits and subscription records have a place in the billing model, while the payment checkout rail remains an explicit deployment capability.
 
@@ -94,6 +99,8 @@ The API is the shared contract used by the web client and CLI.
 | `POST /api/publish-intent` | Create an authenticated publish intent |
 | `GET /api/publisher-billing` | Read the authenticated publisher's plan and usage |
 | `POST /api/published-assets` | Finalize and verify a Shelby upload |
+| `GET /api/shelby-sponsor/config` | Read the authenticated publisher sponsor availability |
+| `POST /api/shelby-sponsor/submit` | Forward an authenticated, signed transaction to the Render submitter |
 
 Authentication, entitlements, installs, purchases, sales, and publisher routes are exposed through the same API surface.
 
@@ -135,6 +142,9 @@ Required environment values:
 | `VITE_SHELBY_RPC_BASE_URL` | Browser Shelby RPC base URL |
 | `VITE_APTOS_WALLET_NAME` | Wallet adapter configuration |
 | `VITE_PRIMEGATE_REGISTRY_ADDRESS` | Aptos registry address |
+| `PRIMEGATE_SPONSOR_SERVICE_URL` | Vercel proxy URL for the Render transaction submitter |
+| `PRIMEGATE_SPONSOR_SERVICE_TOKEN` | Shared Vercel to Render service token |
+| `PRIMEGATE_SHELBY_SPONSOR_ADDRESS` | Public sponsor account address used by Vercel and Render |
 
 Optional values include `VITE_API_BASE_URL`, `LOCAL_API_PROXY_TARGET`, `PRIMEGATE_MAX_UPLOAD_BYTES`, `PRIMEGATE_FREE_PUBLISH_BYTES`, `PRIMEGATE_FREE_EGRESS_BYTES`, `PRIMEGATE_BILLING_PAYMENT_RAIL`, `SHELBY_API_KEY`, and `SHELBY_RPC_BASE_URL`.
 
@@ -177,6 +187,8 @@ The health endpoint reports the active network and whether the database, registr
 curl https://primegatelive.vercel.app/api/health
 ```
 
+The server-side transaction submitter is a separate Render web service provisioned by [`render.yaml`](render.yaml). It exposes `/health` and a token-protected `/submit` endpoint. Set `PRIMEGATE_SPONSOR_SERVICE_TOKEN`, `PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY`, and `PRIMEGATE_SHELBY_SPONSOR_ADDRESS` in Render. Set the Render service URL, the same service token, and the public sponsor address in Vercel. The private key stays in Render and is never sent to the browser or Vercel.
+
 The current environment is connected to Aptos testnet and Shelby testnet. Mainnet configuration is a deployment change, not a different package or storage model.
 
 ## Repository layout
@@ -184,6 +196,7 @@ The current environment is connected to Aptos testnet and Shelby testnet. Mainne
 ```text
 api/                  Vercel API functions and request routers
 api/_lib/             Catalog, auth, publishing, payment, Shelby, and encryption services
+services/              Render-hosted transaction submitter and sponsor validation
 src/pages/            Public, publisher, and workspace routes
 src/components/       Shared UI and package presentation
 src/hooks/            Wallet, catalog, publishing, and route-data hooks
@@ -202,7 +215,7 @@ The core release path is live and verified. The next operational work is focused
 - release migration and key rotation tooling;
 - retention-aware storage cost reconciliation for large artifacts;
 - publisher quota, prepaid credit, and subscription checkout;
-- sponsored Shelby registration so publishers can use PrimeGate without funding protocol fees themselves;
+- sponsor balance monitoring, transaction retries, and mainnet network configuration;
 - stronger publisher verification and package provenance;
 - mainnet Aptos and Shelby configuration with production monitoring.
 

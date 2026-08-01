@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:sponsor": "tsc -p tsconfig.sponsor.json"
   },
   "dependencies": {
     "@aptos-labs/siwa": "^0.5.2",

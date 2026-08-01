@@ -49,6 +49,14 @@
       "destination": "/api/publishing-router?route=published-assets"
     },
     {
+      "source": "/api/shelby-sponsor/config",
+      "destination": "/api/shelby-sponsor-router?route=config"
+    },
+    {
+      "source": "/api/shelby-sponsor/submit",
+      "destination": "/api/shelby-sponsor-router?route=submit"
+    },
+    {
       "source": "/api/search/publishers",
       "destination": "/api/search-router?route=publishers"
     },

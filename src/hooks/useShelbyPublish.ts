@@ -6,7 +6,7 @@ import {
   generateCommitments,
   ShelbyBlobClient,
 } from "@shelby-protocol/sdk/browser";
-import { AccountAddress } from "@aptos-labs/ts-sdk";
+import { AccountAddress, Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 
 import { PRIMEGATE_REGISTRY_CONTRACT_ADDRESS } from "@/config/primegate-registry";
 import {
@@ -36,9 +36,11 @@ import {
 } from "@/lib/primegate-content-encryption";
 import { encodePrimeGatePackageId, getPrimeGateRegistryFunctionId } from "@/lib/primegate-registry-contract";
 import {
+  fetchPrimeGateShelbySponsorConfig,
   finalizePublishedAsset,
   requestPublishIntent,
   syncPublishedAssetListing,
+  submitPrimeGateShelbySponsorTransaction,
 } from "@/lib/registry-api";
 
 type PublishAssetArgs = {
@@ -125,12 +127,67 @@ export function useShelbyPublish() {
     ensurePrimeGateSession,
     isWrongNetwork,
     requiredNetworkName,
+    signTransaction,
     signAndSubmitTransaction,
   } = usePrimeGateWallet();
   const canPublish = useMemo(
     () => Boolean(account?.address && signAndSubmitTransaction),
     [account?.address, signAndSubmitTransaction],
   );
+
+  const submitPrimeGateListingTransaction = async ({
+    packageId,
+    priceApt,
+    sponsorConfig,
+  }: {
+    packageId: string;
+    priceApt: string | number;
+    sponsorConfig: Awaited<ReturnType<typeof fetchPrimeGateShelbySponsorConfig>>;
+  }) => {
+    if (!account?.address) {
+      throw new Error("Connect an Aptos wallet before publishing a listing.");
+    }
+
+    const listingOptions = await getPrimeGateTransactionOptions(10_000);
+    const listingData = {
+      function: getPrimeGateRegistryFunctionId(PRIMEGATE_REGISTRY_CONTRACT_ADDRESS, "upsert_listing"),
+      functionArguments: [
+        encodePrimeGatePackageId(packageId),
+        parseAptAmountToOctas(priceApt).toString(),
+      ],
+    };
+
+    if (!sponsorConfig.enabled || !sponsorConfig.sponsorAddress) {
+      return signAndSubmitTransaction({
+        data: listingData,
+        options: listingOptions,
+        sender: account.address,
+      });
+    }
+
+    const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+    const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
+    const sponsoredTransaction = await aptos.transaction.build.simple({
+      data: listingData,
+      options: listingOptions,
+      sender: AccountAddress.from(account.address),
+      withFeePayer: true,
+    });
+
+    sponsoredTransaction.feePayerAddress = sponsorAddress;
+    const signedTransaction = await signTransaction({
+      transactionOrPayload: sponsoredTransaction,
+    });
+
+    return submitPrimeGateShelbySponsorTransaction({
+      expectedPackageId: packageId,
+      expectedPriceOctas: parseAptAmountToOctas(priceApt).toString(),
+      operation: "primegate-listing",
+      senderAuthenticatorHex: signedTransaction.authenticator.bcsToHex().toString(),
+      transactionHex: sponsoredTransaction.bcsToHex().toString(),
+      walletAddress: AccountAddress.from(account.address).toStringLong(),
+    });
+  };
 
   const publishAsset = async ({
     description,
@@ -247,36 +304,66 @@ export function useShelbyPublish() {
       }
       const shelbyBuildOptions = await getPrimeGateTransactionOptions(50_000);
       const shelbyExpirationMicros = Date.now() * 1000 + PRIMEGATE_DEFAULT_BLOB_TTL_MICROS;
-      const pendingShelbyRegistration = await signAndSubmitTransaction({
-        data: ShelbyBlobClient.createBatchRegisterBlobsPayload({
-          account: AccountAddress.from(account.address),
-          expirationMicros: shelbyExpirationMicros,
-          blobs: [
-            {
-              blobName: publishIntent.assetBlobName,
-              blobMerkleRoot: assetCommitments.blob_merkle_root,
-              blobSize: assetCommitments.raw_data_size,
-              numChunksets: expectedTotalChunksets(
-                assetCommitments.raw_data_size,
-                provider.config.chunkSizeBytes * provider.config.erasure_k,
-              ),
+      const sponsorConfig = await fetchPrimeGateShelbySponsorConfig();
+      const blobRegistration = {
+        account: AccountAddress.from(account.address),
+        expirationMicros: shelbyExpirationMicros,
+        blobs: [
+          {
+            blobName: publishIntent.assetBlobName,
+            blobMerkleRoot: assetCommitments.blob_merkle_root,
+            blobSize: assetCommitments.raw_data_size,
+            numChunksets: expectedTotalChunksets(
+              assetCommitments.raw_data_size,
+              provider.config.chunkSizeBytes * provider.config.erasure_k,
+            ),
+          },
+          {
+            blobName: publishIntent.manifestBlobName,
+            blobMerkleRoot: manifestCommitments.blob_merkle_root,
+            blobSize: manifestCommitments.raw_data_size,
+            numChunksets: expectedTotalChunksets(
+              manifestCommitments.raw_data_size,
+              provider.config.chunkSizeBytes * provider.config.erasure_k,
+            ),
+          },
+        ],
+        encoding: provider.config.enumIndex,
+      };
+
+      const pendingShelbyRegistration = sponsorConfig.enabled && sponsorConfig.sponsorAddress
+        ? await (async () => {
+            const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+            const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
+            const sponsoredTransaction = await aptos.transaction.build.multiAgent({
+              data: ShelbyBlobClient.createBatchRegisterBlobsPayload({
+                ...blobRegistration,
+                useSponsoredUsdVariant: true,
+              }),
+              options: shelbyBuildOptions,
+              secondarySignerAddresses: [sponsorAddress],
+              sender: AccountAddress.from(account.address),
+              withFeePayer: true,
+            });
+
+            sponsoredTransaction.feePayerAddress = sponsorAddress;
+            const signedTransaction = await signTransaction({
+              transactionOrPayload: sponsoredTransaction,
+            });
+            return submitPrimeGateShelbySponsorTransaction({
+              attestationToken: publishIntent.attestationToken,
+              operation: "shelby-registration",
+              senderAuthenticatorHex: signedTransaction.authenticator.bcsToHex().toString(),
+              transactionHex: sponsoredTransaction.bcsToHex().toString(),
+              walletAddress: address,
+            });
+          })()
+        : await signAndSubmitTransaction({
+            data: ShelbyBlobClient.createBatchRegisterBlobsPayload(blobRegistration),
+            options: {
+              ...shelbyBuildOptions,
             },
-            {
-              blobName: publishIntent.manifestBlobName,
-              blobMerkleRoot: manifestCommitments.blob_merkle_root,
-              blobSize: manifestCommitments.raw_data_size,
-              numChunksets: expectedTotalChunksets(
-                manifestCommitments.raw_data_size,
-                provider.config.chunkSizeBytes * provider.config.erasure_k,
-              ),
-            },
-          ],
-          encoding: provider.config.enumIndex,
-        }),
-        options: {
-          ...shelbyBuildOptions,
-        },
-      });
+          });
 
       await waitForPrimeGateTransaction(pendingShelbyRegistration.hash);
       const assetUpload = await createPrimeGateEncryptedStream(
@@ -316,17 +403,10 @@ export function useShelbyPublish() {
 
       if (normalizedPriceApt !== "0") {
         try {
-          const listingOptions = await getPrimeGateTransactionOptions(10_000);
-          const listingTransaction = await signAndSubmitTransaction({
-            data: {
-              function: getPrimeGateRegistryFunctionId(PRIMEGATE_REGISTRY_CONTRACT_ADDRESS, "upsert_listing"),
-              functionArguments: [
-                encodePrimeGatePackageId(finalizedAsset.id),
-                parseAptAmountToOctas(normalizedPriceApt).toString(),
-              ],
-            },
-            options: listingOptions,
-            sender: account.address,
+          const listingTransaction = await submitPrimeGateListingTransaction({
+            packageId: finalizedAsset.id,
+            priceApt: normalizedPriceApt,
+            sponsorConfig,
           });
 
           await waitForPrimeGateTransaction(listingTransaction.hash);
@@ -396,17 +476,11 @@ export function useShelbyPublish() {
 
     try {
       await ensurePrimeGateSession();
-      const listingOptions = await getPrimeGateTransactionOptions(10_000);
-      const listingTransaction = await signAndSubmitTransaction({
-        data: {
-          function: getPrimeGateRegistryFunctionId(PRIMEGATE_REGISTRY_CONTRACT_ADDRESS, "upsert_listing"),
-          functionArguments: [
-            encodePrimeGatePackageId(asset.id),
-            parseAptAmountToOctas(asset.price).toString(),
-          ],
-        },
-        options: listingOptions,
-        sender: account.address,
+      const sponsorConfig = await fetchPrimeGateShelbySponsorConfig();
+      const listingTransaction = await submitPrimeGateListingTransaction({
+        packageId: asset.id,
+        priceApt: asset.price,
+        sponsorConfig,
       });
 
       await waitForPrimeGateTransaction(listingTransaction.hash);

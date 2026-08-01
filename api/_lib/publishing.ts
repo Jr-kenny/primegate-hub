@@ -179,7 +179,7 @@ function createPublishAttestationToken(claims: z.infer<typeof publishIntentClaim
   return `${payload}.${signPublishValue(payload)}`;
 }
 
-function verifyPublishAttestationToken(token: string) {
+export function verifyPublishAttestationToken(token: string) {
   const [payload, signature] = token.split(".");
 
   if (!payload || !signature) {

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: primegate-transaction-submitter
+    runtime: node
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: pnpm exec tsx services/shelby-sponsor/server.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PRIMEGATE_SPONSOR_SERVICE_TOKEN
+        sync: false
+      - key: PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY
+        sync: false
+      - key: PRIMEGATE_SHELBY_SPONSOR_ADDRESS
+        sync: false
