@@ -12,6 +12,7 @@ import {
   fetchEntitlements,
   fetchInstalls,
   fetchPublishedAssets,
+  fetchPublisherBilling,
   fetchPublisherSales,
   fetchPurchases,
   persistInstall,
@@ -34,6 +35,7 @@ const WALLET_SCOPED_QUERY_KEYS = [
   ["primegate", "purchases"],
   ["primegate", "installs"],
   ["primegate", "published-assets"],
+  ["primegate", "publisher-billing"],
   ["primegate", "sales"],
   ["primegate", "entitlements"],
 ] as const;
@@ -151,6 +153,18 @@ export function usePrimeGateRegistry() {
         return await fetchPublisherSales(walletAddress);
       } catch {
         return [];
+      }
+    },
+  });
+
+  const publisherBillingQuery = useQuery({
+    enabled: Boolean(walletAddress && hasSession),
+    queryKey: ["primegate", "publisher-billing", walletAddress],
+    queryFn: async () => {
+      try {
+        return await fetchPublisherBilling();
+      } catch {
+        return null;
       }
     },
   });
@@ -342,9 +356,11 @@ export function usePrimeGateRegistry() {
     isPurchased,
     hasSession,
     publishedAssets,
+    publisherBilling: publisherBillingQuery.data ?? null,
     installsSyncing: installsQuery.isFetching,
     purchasesSyncing: purchasesQuery.isFetching,
     publishedAssetsSyncing: publishedAssetsQuery.isFetching,
+    publisherBillingSyncing: publisherBillingQuery.isFetching,
     salesSyncing: salesQuery.isFetching,
     purchasePackage,
     purchases,

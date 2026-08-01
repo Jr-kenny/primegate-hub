@@ -180,6 +180,11 @@ export function useShelbyPublish() {
         title,
       });
 
+      queryClient.setQueryData(
+        ["primegate", "publisher-billing", address.toLowerCase()],
+        publishIntent.billing,
+      );
+
       const contentKey = createPrimeGateContentKey();
       const assetEncryption = await createPrimeGateEncryptedStream(
         file.stream(),
@@ -369,6 +374,11 @@ export function useShelbyPublish() {
       throw publishError;
     } finally {
       setIsPublishingAsset(false);
+      if (address) {
+        void queryClient.invalidateQueries({
+          queryKey: ["primegate", "publisher-billing", address.toLowerCase()],
+        });
+      }
     }
   };
 

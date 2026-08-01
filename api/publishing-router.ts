@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { listPublishedAssets, syncPublishedAssetListing } from "./_lib/catalog.js";
 import { AuthError, requireAuthenticatedWallet } from "./_lib/auth.js";
 import { createPublishIntent, finalizePublishedAsset } from "./_lib/publishing.js";
+import { getPublisherBillingSummary } from "./_lib/publisher-billing.js";
 import { jsonResponse, errorResponse, methodNotAllowed } from "./_lib/request.js";
 
 function getRoute(request: Request) {
@@ -13,7 +14,7 @@ async function postPublishIntent(request: Request) {
   try {
     const payload = await request.json();
     const claims = requireAuthenticatedWallet(request);
-    const publishIntent = createPublishIntent(claims.walletAddress, payload);
+    const publishIntent = await createPublishIntent(claims.walletAddress, payload);
     return jsonResponse({ data: publishIntent });
   } catch (error) {
     console.error("POST /api/publish-intent failed", error);
@@ -29,6 +30,22 @@ async function postPublishIntent(request: Request) {
               ? 400
               : 500,
       },
+    );
+  }
+}
+
+async function getPublisherBilling(request: Request) {
+  try {
+    const claims = requireAuthenticatedWallet(request);
+    const summary = await getPublisherBillingSummary(claims.walletAddress);
+    return jsonResponse({ data: summary }, undefined, "private, no-store");
+  } catch (error) {
+    console.error("GET /api/publisher-billing failed", error);
+    return jsonResponse(
+      {
+        error: error instanceof Error ? error.message : "Unable to load publisher billing.",
+      },
+      { status: error instanceof AuthError ? error.status : 500 },
     );
   }
 }
@@ -113,6 +130,8 @@ export async function GET(request: Request) {
   const route = getRoute(request);
 
   switch (route) {
+    case "billing":
+      return getPublisherBilling(request);
     case "published-assets":
       return getPublishedAssets(request);
     default:

@@ -15,6 +15,7 @@ This note covers PrimeGate's Shelby integration and its production boundary.
 - Paid resolve, manifest, and artifact responses are private and non-cacheable. Free responses can use short public cache windows.
 - Finalization treats the package slug and SemVer release as immutable. A repeated finalize is idempotent, while a different blob cannot reuse an existing release ID.
 - The manifest carries package metadata, release channel, and the default commercial offer. The registry returns that offer with the resolution and stores it with purchase records.
+- Publisher publish bytes are reserved before Shelby registration and committed after finalization. The usage ledger uses stable keys for retries, and protected downloads record publisher egress by release and delivered byte range.
 - The application provides the shared query and Shelby client providers required by the browser SDK.
 - New Shelby blob names are opaque `primegate/content/<release-id>/...` paths without the original extension or package slug.
 
@@ -34,5 +35,7 @@ The server-side Shelby client uses `SHELBY_API_KEY` and `SHELBY_RPC_BASE_URL` wh
 ## Remaining production work
 
 The browser flow still needs a durable resume action for a failure after on-chain blob registration but before PrimeGate finalization. The current release status and listing retry path cover failed paid listings after finalization. They do not yet recover every interrupted upload attempt automatically.
+
+Publisher billing now has the free allowance, usage, reservation, and credit ledger boundary. It still needs a real checkout rail and the sponsored Shelby registration path before PrimeGate can remove Aptos gas and ShelbyUSD funding from the publisher onboarding flow.
 
 Existing testnet releases created before the encrypted format remain legacy plaintext objects in Shelby. They need a republish or migration pass before production submission if the submission claims that every release is PrimeGate-only.

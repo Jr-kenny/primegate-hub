@@ -12,6 +12,10 @@ import {
   wrapPrimeGateContentKey,
 } from "./content-encryption.js";
 import { getShelbyClient } from "./shelby.js";
+import {
+  commitPublisherPublish,
+  reservePublisherPublish,
+} from "./publisher-billing.js";
 import { normalizeAptAmount } from "../../src/lib/aptos-amount.js";
 import { readPrimeGateEnvValue } from "../../src/lib/primegate-env.js";
 import type { PrimeGateContentEncryptionManifest } from "../../src/lib/primegate-content-encryption.js";
@@ -460,7 +464,7 @@ function assertIntentMatchesManifest(
   }
 }
 
-export function createPublishIntent(ownerAddress: string, input: unknown) {
+export async function createPublishIntent(ownerAddress: string, input: unknown) {
   const parsedInput = createPublishIntentSchema.parse(input);
   assertConfiguredUploadLimit(parsedInput.sizeBytes);
   const parsed = {
@@ -475,6 +479,13 @@ export function createPublishIntent(ownerAddress: string, input: unknown) {
   const id = randomUUID();
   const createdAt = new Date(issuedAt).toISOString();
   const expiresAt = issuedAt + PRIMEGATE_PUBLISH_INTENT_TTL_MS;
+
+  const billing = await reservePublisherPublish({
+    expiresAt: new Date(expiresAt),
+    intentId: id,
+    sizeBytes: parsed.sizeBytes,
+    walletAddress: normalizedOwnerAddress,
+  });
 
   const claims = publishIntentClaimsSchema.parse({
     ...parsed,
@@ -495,6 +506,7 @@ export function createPublishIntent(ownerAddress: string, input: unknown) {
     id: claims.id,
     manifestBlobName: claims.manifestBlobName,
     ownerAddress: claims.ownerAddress,
+    billing,
   };
 }
 
@@ -577,7 +589,7 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
     throw new AuthError("Uploaded asset size does not match the PrimeGate publish attestation.", 400);
   }
 
-  return savePublishedAsset({
+  const savedAsset = await savePublishedAsset({
     assetBlobName: claims.assetBlobName,
     assetSha256: assetStats.sha256,
     ciphertextSizeBytes: assetStats.ciphertextSize,
@@ -602,4 +614,14 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
     sizeBytes: claims.sizeBytes,
     title: claims.title,
   });
+
+  await commitPublisherPublish({
+    intentId: claims.id,
+    releaseId: claims.id,
+    sizeBytes: claims.sizeBytes,
+    storageBytes: assetStats.ciphertextSize + manifestStats.ciphertextSize,
+    walletAddress: claims.ownerAddress,
+  });
+
+  return savedAsset;
 }

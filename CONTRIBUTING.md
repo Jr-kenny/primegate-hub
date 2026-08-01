@@ -2,7 +2,7 @@
 
 Contributions are welcome. Short version: ship changes that work, can be reviewed, and respect the boundary PrimeGate provides around package access and storage.
 
-PrimeGate is a working registry, API, and CLI for versioned digital assets. It handles wallet identity, release metadata, access offers, encrypted artifacts, Shelby storage, and protected delivery. Changes here can affect real package publishing, Aptos transactions, stored release state, or access to paid content, so care is part of the implementation.
+PrimeGate is a working registry, API, and CLI for versioned digital assets. It handles wallet identity, release metadata, access offers, encrypted artifacts, Shelby storage, protected delivery, and publisher usage. Changes here can affect real package publishing, Aptos transactions, stored release state, usage accounting, or access to paid content, so care is part of the implementation.
 
 ## The bar
 
@@ -17,6 +17,8 @@ Every pull request gets reviewed before merge. These are the things that get pul
 **Match what is there.** Follow the existing structure, naming, TypeScript patterns, and product language around your change. Do not add a new framework, dependency, or application pattern without opening an issue first.
 
 **Respect the storage boundary.** New browser and CLI uploads must preserve the encrypted upload flow. Do not expose raw Shelby access paths, plaintext objects, content keys, or storage credentials through the public API. Resolve and download behavior belongs behind PrimeGate access checks.
+
+**Keep billing idempotent.** Publisher usage is separate from package purchase settlement. Publish reservations, usage events, credit changes, and delivery metering need stable idempotency keys and must remain safe across retries.
 
 **No secrets, ever.** Database URLs, Aptos wallet material, Shelby API keys, session secrets, publish secrets, and content-key secrets never go into the repository. Use local environment files and keep them out of commits. If a secret is committed even once, treat it as burned and rotate it.
 
@@ -65,6 +67,7 @@ Useful contribution areas include:
 - package discovery, search, and publisher experiences.
 - CLI and SDK compatibility with the shared release contract.
 - encrypted upload, resume, streaming, and range verification.
+- publisher quotas, usage metering, credits, and subscription integrations.
 - Aptos testnet and mainnet operational tooling.
 - observability, recovery paths, and test coverage.
 - documentation that helps publishers and consumers use real releases.

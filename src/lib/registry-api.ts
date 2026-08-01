@@ -13,6 +13,7 @@ import type {
   PrimeGatePurchaseRecord,
 } from "@/lib/registry-state";
 import { getPrimeGateSessionToken, type PrimeGateSession } from "@/services/auth";
+import type { PrimeGatePublisherBillingSummary } from "@/lib/publisher-billing";
 import type { SerializedAptosSignInOutput } from "@aptos-labs/siwa";
 
 type AptosSignInInput = {
@@ -81,6 +82,7 @@ type PublishIntentResponse = {
   id: string;
   manifestBlobName: string;
   ownerAddress: string;
+  billing: PrimeGatePublisherBillingSummary;
 };
 
 type FinalizePublishedAssetPayload = {
@@ -244,6 +246,10 @@ export function fetchPublishedAssets(ownerAddress: string) {
   return requestJson<PrimeGatePublishedAssetRecord[]>(
     `/api/published-assets?ownerAddress=${encodeURIComponent(ownerAddress)}`,
   );
+}
+
+export function fetchPublisherBilling() {
+  return requestJson<PrimeGatePublisherBillingSummary>("/api/publisher-billing");
 }
 
 export function fetchPurchases(walletAddress: string) {

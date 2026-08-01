@@ -170,6 +170,43 @@ create table if not exists published_offers (
 
 create index if not exists idx_published_offers_asset_id on published_offers (published_asset_id);
 
+create table if not exists publisher_billing_accounts (
+  wallet_address text primary key,
+  plan_slug text not null default 'free',
+  subscription_status text not null default 'inactive',
+  billing_provider text,
+  external_customer_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists publisher_usage_ledger (
+  id uuid primary key default gen_random_uuid(),
+  wallet_address text not null,
+  event_type text not null check (event_type in ('publish', 'egress', 'credit_grant', 'credit_debit')),
+  logical_bytes bigint not null default 0,
+  storage_bytes bigint not null default 0,
+  egress_bytes bigint not null default 0,
+  credit_bytes bigint not null default 0,
+  release_id text,
+  reservation_id uuid,
+  idempotency_key text not null unique,
+  metadata_json text not null default '{}',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists publisher_usage_reservations (
+  id uuid primary key default gen_random_uuid(),
+  intent_id uuid not null unique,
+  wallet_address text not null,
+  reserved_bytes bigint not null,
+  reserved_credit_bytes bigint not null default 0,
+  status text not null default 'pending' check (status in ('pending', 'committed', 'released', 'expired')),
+  expires_at timestamptz not null,
+  committed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 insert into published_offers (
   published_asset_id,
   slug,
@@ -268,3 +305,7 @@ create index if not exists idx_installs_wallet_address on installs (lower(wallet
 create index if not exists idx_wallet_auth_nonces_wallet_address on wallet_auth_nonces (lower(wallet_address));
 create index if not exists idx_publishers_slug_trgm on publishers using gin (slug gin_trgm_ops);
 create index if not exists idx_publishers_summary_trgm on publishers using gin (summary gin_trgm_ops);
+create index if not exists idx_publisher_usage_ledger_wallet_created
+  on publisher_usage_ledger (lower(wallet_address), created_at desc);
+create index if not exists idx_publisher_usage_reservations_wallet_status
+  on publisher_usage_reservations (lower(wallet_address), status, expires_at);

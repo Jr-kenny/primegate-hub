@@ -41,6 +41,10 @@
       "destination": "/api/publishing-router?route=publish-intent"
     },
     {
+      "source": "/api/publisher-billing",
+      "destination": "/api/publishing-router?route=billing"
+    },
+    {
       "source": "/api/published-assets",
       "destination": "/api/publishing-router?route=published-assets"
     },

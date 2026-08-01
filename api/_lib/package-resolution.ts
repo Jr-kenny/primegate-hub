@@ -21,6 +21,7 @@ import {
   getPrimeGateRegistryListing,
   hasPrimeGateRegistryPurchase,
 } from "./primegate-registry.js";
+import { recordPublisherEgress } from "./publisher-billing.js";
 import { toAbsoluteUrl } from "./request.js";
 import type { PrimeGateContentEncryptionManifest } from "../../src/lib/primegate-content-encryption.js";
 
@@ -364,6 +365,13 @@ export async function downloadPublishedPackageArtifact(request: Request, package
       : undefined,
   );
   const body = "stream" in assetStream ? assetStream.stream : assetStream;
+  const deliveredBytes = range ? range.end - range.start + 1 : publishedAsset.sizeBytes;
+
+  await recordPublisherEgress({
+    bytes: deliveredBytes,
+    releaseId: publishedAsset.id,
+    walletAddress: publishedAsset.ownerAddress,
+  });
 
   return {
     body,
@@ -371,7 +379,7 @@ export async function downloadPublishedPackageArtifact(request: Request, package
     contentRange: range ? `bytes ${range.start}-${range.end}/${publishedAsset.sizeBytes}` : null,
     mimeType: publishedAsset.mimeType,
     originalFileName: publishedAsset.originalFileName,
-    sizeBytes: range ? range.end - range.start + 1 : publishedAsset.sizeBytes,
+    sizeBytes: deliveredBytes,
     status: range ? (206 as const) : (200 as const),
   };
 }

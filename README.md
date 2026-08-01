@@ -25,7 +25,7 @@ PrimeGate puts those pieces behind one registry. A publisher can upload an artif
 | --- | --- |
 | PrimeGate | Package identity, release metadata, offers, wallet sessions, entitlements, verification, and delivery |
 | Shelby | Hot storage for encrypted artifact and manifest bytes |
-| Neon Postgres | Catalog state, publish intents, key envelopes, offers, purchases, installs, and reviews |
+| Neon Postgres | Catalog state, publish intents, key envelopes, offers, purchases, installs, reviews, and publisher usage |
 | Aptos | Wallet authentication, Shelby registration, and paid listing settlement |
 
 ```mermaid
@@ -42,13 +42,15 @@ flowchart LR
 ## How a release works
 
 1. A publisher connects an Aptos wallet and signs a PrimeGate session.
-2. PrimeGate creates a publish intent that binds the publisher, package slug, SemVer version, release channel, offer, and artifact attestation.
+2. PrimeGate checks the publisher's hybrid plan and reserves the requested publish bytes before creating an intent that binds the publisher, package slug, SemVer version, release channel, offer, and artifact attestation.
 3. The browser encrypts the artifact and manifest into chunked AES-256-GCM ciphertext before uploading them to Shelby. The CLI follows the same format.
 4. Shelby registers the encrypted blobs under opaque PrimeGate-controlled names. The original file name and package slug are kept in the manifest and catalog, not in the Shelby object path.
 5. PrimeGate reads the uploaded ciphertext back from Shelby, decrypts it incrementally, and verifies the plaintext size and SHA-256 against the publish intent.
 6. The API wraps the release key with `PRIMEGATE_CONTENT_KEY_SECRET` and stores the envelope with the release metadata in Neon. The raw content key is never stored in the catalog.
 7. A consumer resolves the package through PrimeGate. The response includes the release, offer, access state, and install paths.
 8. The download endpoint checks the release access rule, reads the required range from Shelby, decrypts the selected chunks, verifies the plaintext stream, and returns it through PrimeGate.
+
+Publisher usage is recorded separately from package sales. The default plan includes a configurable monthly publish allowance and delivery allowance. Prepaid credits and subscription records have a place in the billing model, while the payment checkout rail remains an explicit deployment capability.
 
 ## Storage and access model
 
@@ -90,6 +92,7 @@ The API is the shared contract used by the web client and CLI.
 | `GET /api/packages/:id/download` | Stream the authorized decrypted artifact |
 | `GET /api/search` | Search packages |
 | `POST /api/publish-intent` | Create an authenticated publish intent |
+| `GET /api/publisher-billing` | Read the authenticated publisher's plan and usage |
 | `POST /api/published-assets` | Finalize and verify a Shelby upload |
 
 Authentication, entitlements, installs, purchases, sales, and publisher routes are exposed through the same API surface.
@@ -133,7 +136,7 @@ Required environment values:
 | `VITE_APTOS_WALLET_NAME` | Wallet adapter configuration |
 | `VITE_PRIMEGATE_REGISTRY_ADDRESS` | Aptos registry address |
 
-Optional values include `VITE_API_BASE_URL`, `LOCAL_API_PROXY_TARGET`, `PRIMEGATE_MAX_UPLOAD_BYTES`, `SHELBY_API_KEY`, and `SHELBY_RPC_BASE_URL`.
+Optional values include `VITE_API_BASE_URL`, `LOCAL_API_PROXY_TARGET`, `PRIMEGATE_MAX_UPLOAD_BYTES`, `PRIMEGATE_FREE_PUBLISH_BYTES`, `PRIMEGATE_FREE_EGRESS_BYTES`, `PRIMEGATE_BILLING_PAYMENT_RAIL`, `SHELBY_API_KEY`, and `SHELBY_RPC_BASE_URL`.
 
 `PRIMEGATE_CONTENT_KEY_SECRET` must be a stable high-entropy value. Rotating it without rewrapping stored envelopes makes existing encrypted releases unreadable.
 
@@ -197,7 +200,9 @@ The core release path is live and verified. The next operational work is focused
 
 - durable resume for an upload interrupted after Shelby registration;
 - release migration and key rotation tooling;
-- usage and egress metering for large artifacts;
+- retention-aware storage cost reconciliation for large artifacts;
+- publisher quota, prepaid credit, and subscription checkout;
+- sponsored Shelby registration so publishers can use PrimeGate without funding protocol fees themselves;
 - stronger publisher verification and package provenance;
 - mainnet Aptos and Shelby configuration with production monitoring.
 

@@ -17,6 +17,7 @@ import { usePrimeGateRegistry } from "@/hooks/usePrimeGateRegistry";
 import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
 import { useShelbyPublish } from "@/hooks/useShelbyPublish";
 import { normalizeAptAmount } from "@/lib/aptos-amount";
+import { formatPrimeGateBytes } from "@/lib/publisher-billing";
 import {
   normalizePrimeGatePackageSlug,
   normalizePrimeGateReleaseVersion,
@@ -74,7 +75,7 @@ export default function Publish() {
     shortAddress,
     switchToPrimeGateNetwork,
   } = usePrimeGateWallet();
-  const { publishedAssets } = usePrimeGateRegistry();
+  const { publishedAssets, publisherBilling } = usePrimeGateRegistry();
   const { error, isPublishing, publishAsset } = useShelbyPublish();
 
   useEffect(() => {
@@ -263,6 +264,22 @@ export default function Publish() {
             Shelby uploads require Aptos Testnet and ShelbyUSD in the connected wallet.
           </p>
         </div>
+
+        {publisherBilling && (
+          <div className="rounded-md bg-secondary/60 p-3 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">{publisherBilling.plan.name} plan</span>
+              <span className="text-muted-foreground">
+                {formatPrimeGateBytes(publisherBilling.publish.remainingBytes)} publish bytes available
+              </span>
+            </div>
+            {publisherBilling.credits.availableBytes > 0 && (
+              <p className="mt-1 text-muted-foreground">
+                {formatPrimeGateBytes(publisherBilling.credits.availableBytes)} in publisher credits available.
+              </p>
+            )}
+          </div>
+        )}
 
         {!isConnected && !isReconnectingWallet && availableWallets.length > 0 && (
           <div className="flex flex-wrap gap-2">
