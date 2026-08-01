@@ -430,14 +430,20 @@ export async function listPackages() {
         select count(distinct owner_assets.package_slug)::int
         from published_assets owner_assets
         where lower(owner_assets.owner_address) = lower(published_assets.owner_address)
+          and owner_assets.encryption_json is not null
+          and owner_assets.content_key_envelope is not null
       ) as owner_asset_count,
       (
         select count(*)::int
         from published_assets release_assets
         where lower(release_assets.owner_address) = lower(published_assets.owner_address)
           and release_assets.package_slug = published_assets.package_slug
+          and release_assets.encryption_json is not null
+          and release_assets.content_key_envelope is not null
       ) as package_release_count
     from published_assets
+    where encryption_json is not null
+      and content_key_envelope is not null
     order by lower(owner_address), package_slug, created_at desc, id desc
   `);
 
@@ -653,6 +659,8 @@ export async function getPublisherProfile(id: string) {
         release_version
       from published_assets
       where lower(owner_address) = lower(${id})
+        and encryption_json is not null
+        and content_key_envelope is not null
       order by package_slug, created_at desc, id desc
     `);
 
@@ -1061,22 +1069,30 @@ export async function searchCatalogPackages(query: string) {
         select count(distinct owner_assets.package_slug)::int
         from published_assets owner_assets
         where lower(owner_assets.owner_address) = lower(published_assets.owner_address)
+          and owner_assets.encryption_json is not null
+          and owner_assets.content_key_envelope is not null
       ) as owner_asset_count,
       (
         select count(*)::int
         from published_assets release_assets
         where lower(release_assets.owner_address) = lower(published_assets.owner_address)
           and release_assets.package_slug = published_assets.package_slug
+          and release_assets.encryption_json is not null
+          and release_assets.content_key_envelope is not null
       ) as package_release_count
     from published_assets
     where
-      id ilike ${`%${trimmedQuery}%`}
-      or title ilike ${`%${trimmedQuery}%`}
-      or description ilike ${`%${trimmedQuery}%`}
-      or original_file_name ilike ${`%${trimmedQuery}%`}
-      or owner_address ilike ${`%${trimmedQuery}%`}
-      or package_slug ilike ${`%${trimmedQuery}%`}
-      or concat(lower(owner_address), '/', package_slug) ilike lower(${`%${trimmedQuery}%`})
+      encryption_json is not null
+      and content_key_envelope is not null
+      and (
+        id ilike ${`%${trimmedQuery}%`}
+        or title ilike ${`%${trimmedQuery}%`}
+        or description ilike ${`%${trimmedQuery}%`}
+        or original_file_name ilike ${`%${trimmedQuery}%`}
+        or owner_address ilike ${`%${trimmedQuery}%`}
+        or package_slug ilike ${`%${trimmedQuery}%`}
+        or concat(lower(owner_address), '/', package_slug) ilike lower(${`%${trimmedQuery}%`})
+      )
     order by lower(owner_address), package_slug, created_at desc, id desc
     limit 24
   `);
@@ -1163,9 +1179,13 @@ export async function searchCatalogPublishers(query: string) {
       count(distinct package_slug)::int as package_count
     from published_assets
     where
-      lower(owner_address) ilike lower(${`%${trimmedQuery}%`})
-      or package_slug ilike ${`%${trimmedQuery}%`}
-      or title ilike ${`%${trimmedQuery}%`}
+      encryption_json is not null
+      and content_key_envelope is not null
+      and (
+        lower(owner_address) ilike lower(${`%${trimmedQuery}%`})
+        or package_slug ilike ${`%${trimmedQuery}%`}
+        or title ilike ${`%${trimmedQuery}%`}
+      )
     group by lower(owner_address)
     order by package_count desc, lower(owner_address) asc
     limit 12

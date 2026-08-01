@@ -61,4 +61,10 @@ describe("PackageCard", () => {
     renderCard({ ...basePackage, price: "$12" });
     expect(screen.getByText(/\$12/)).toBeInTheDocument();
   });
+
+  it("keeps long wallet publishers readable", () => {
+    const walletPublisher = "0xc0ba79db01224122f6acf11676b1e9c8e602e3e7f37b8ce3de412b4d10b00284";
+    renderCard({ ...basePackage, publisher: walletPublisher });
+    expect(screen.getByTitle(walletPublisher)).toHaveTextContent("0xc0ba...0284");
+  });
 });

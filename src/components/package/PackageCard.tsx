@@ -16,6 +16,14 @@ function formatInstalls(installs: number): string {
   return String(installs);
 }
 
+function formatPublisher(publisher: string): string {
+  if (/^0x[0-9a-f]{16,}$/i.test(publisher)) {
+    return `${publisher.slice(0, 6)}...${publisher.slice(-4)}`;
+  }
+
+  return publisher;
+}
+
 export function PackageCard({ package: pkg, className }: PackageCardProps) {
   const isFree = pkg.price.trim().toLowerCase() === "free";
 
@@ -31,7 +39,7 @@ export function PackageCard({ package: pkg, className }: PackageCardProps) {
       <div className="flex items-start justify-between gap-2">
         <Link
           to={`/package/${pkg.id}`}
-          className="font-serif text-lg font-semibold leading-tight text-card-foreground hover:underline"
+          className="min-w-0 flex-1 line-clamp-2 font-serif text-lg font-semibold leading-tight text-card-foreground hover:underline"
         >
           {pkg.name}
         </Link>
@@ -40,8 +48,8 @@ export function PackageCard({ package: pkg, className }: PackageCardProps) {
         </span>
       </div>
 
-      <p className="mt-1 text-xs text-muted-foreground">
-        {pkg.publisher} · {pkg.license}
+      <p className="mt-1 truncate text-xs text-muted-foreground" title={pkg.publisher}>
+        {formatPublisher(pkg.publisher)} · {pkg.license}
       </p>
 
       <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{pkg.description}</p>
