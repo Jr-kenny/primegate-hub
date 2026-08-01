@@ -327,7 +327,7 @@ function createPrimeGateReadableStream(
 
   return new ReadableStream<Uint8Array>({
     async cancel() {
-      await iterator.return?.();
+      await iterator.return?.(undefined);
     },
     async pull(controller) {
       try {

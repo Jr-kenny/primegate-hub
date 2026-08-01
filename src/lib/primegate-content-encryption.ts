@@ -278,7 +278,7 @@ export async function createPrimeGateEncryptedStream(
   const chunkCount = getPrimeGateEncryptionChunkCount(plaintextSize, chunkSize);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
-    contentKey,
+    contentKey as unknown as BufferSource,
     { name: "AES-GCM" },
     false,
     ["encrypt"],

@@ -363,9 +363,10 @@ export async function downloadPublishedPackageArtifact(request: Request, package
         }
       : undefined,
   );
+  const body = "stream" in assetStream ? assetStream.stream : assetStream;
 
   return {
-    body: assetStream,
+    body,
     cacheControl: resolution.access === "public" ? "public, max-age=60" : "private, no-store",
     contentRange: range ? `bytes ${range.start}-${range.end}/${publishedAsset.sizeBytes}` : null,
     mimeType: publishedAsset.mimeType,
