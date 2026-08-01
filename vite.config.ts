@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     assetsInclude: ["**/*.wasm"],
     build: {
+      modulePreload: false,
       chunkSizeWarningLimit: 650,
       rollupOptions: {
         output: {
