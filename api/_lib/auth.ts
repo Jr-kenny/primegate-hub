@@ -39,6 +39,11 @@ const PRIMEGATE_SIGN_MESSAGE_COOKIE = "primegate-sign-message-input";
 const PRIMEGATE_SESSION_COOKIE = "primegate-session";
 const PRIMEGATE_SIGN_IN_STATEMENT = "Sign in to PrimeGate.";
 const SIWA_VERSION = "1";
+const PRIMEGATE_MESSAGE_AUTH_CHAIN_IDS = new Set([
+  1,
+  2,
+  PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+]);
 
 const aptos = new Aptos(
   new AptosConfig({
@@ -402,6 +407,43 @@ function getSignInInputCookie(request: Request) {
   return parsed;
 }
 
+function getSignMessageInputCookie(request: Request) {
+  const rawCookie = parseCookies(request).get(PRIMEGATE_SIGN_MESSAGE_COOKIE);
+  if (!rawCookie) {
+    throw new AuthError("PrimeGate message-sign challenge was not found.", 400);
+  }
+
+  const parsed = JSON.parse(rawCookie) as PrimeGateSignMessageInput;
+
+  if (
+    !parsed.application ||
+    !Number.isInteger(parsed.chainId) ||
+    !parsed.message ||
+    !parsed.nonce ||
+    !parsed.walletAddress
+  ) {
+    throw new AuthError("PrimeGate message-sign challenge is invalid.", 400);
+  }
+
+  if (!PRIMEGATE_MESSAGE_AUTH_CHAIN_IDS.has(parsed.chainId)) {
+    throw new AuthError("PrimeGate message-sign challenge network is not supported.", 400);
+  }
+
+  return parsed;
+}
+
+function normalizePrimeGateMessageAuthChainId(chainId?: number | null) {
+  if (chainId === undefined || chainId === null) {
+    return PRIMEGATE_APTOS_NUMERIC_CHAIN_ID;
+  }
+
+  if (!Number.isInteger(chainId) || !PRIMEGATE_MESSAGE_AUTH_CHAIN_IDS.has(chainId)) {
+    throw new AuthError("PrimeGate message-sign network is not supported.", 400);
+  }
+
+  return chainId;
+}
+
 function getVerificationErrorMessage(result: { valid: boolean; errors?: string[] }) {
   return result.valid ? "Verification failed." : result.errors?.join(", ") || "Verification failed.";
 }
@@ -536,10 +578,14 @@ export function clearPrimeGateSignInCookie(request: Request) {
   });
 }
 
-export async function createPrimeGateSignMessageResponse(request: Request, walletAddress: string) {
+export async function createPrimeGateSignMessageResponse(
+  request: Request,
+  walletAddress: string,
+  chainId?: number,
+) {
   const input: PrimeGateSignMessageInput = {
     application: getRequestOrigin(request),
-    chainId: PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+    chainId: normalizePrimeGateMessageAuthChainId(chainId),
     message: PRIMEGATE_SIGN_IN_STATEMENT,
     nonce: generateNonce(),
     walletAddress: normalizeWalletAddress(walletAddress),
@@ -652,9 +698,11 @@ export async function verifyWalletMessageSession(
   const walletAddress = normalizeWalletAddress(payload.walletAddress);
   const responseAddress = normalizeWalletAddress(payload.address);
   const storedChallenge = await getPrimeGateSignMessageChallenge(walletAddress, payload.nonce);
+  const challengeInput = getSignMessageInputCookie(request);
+  const expectedChainId = normalizePrimeGateMessageAuthChainId(challengeInput.chainId);
   const expectedInput: PrimeGateSignMessageInput = {
     application: getRequestOrigin(request),
-    chainId: PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+    chainId: expectedChainId,
     message: storedChallenge.message,
     nonce: storedChallenge.nonce,
     walletAddress: storedChallenge.walletAddress,
@@ -670,6 +718,26 @@ export async function verifyWalletMessageSession(
 
   if (payload.application !== expectedInput.application) {
     throw new AuthError("Wallet message-sign application does not match the expected challenge.");
+  }
+
+  if (challengeInput.application !== expectedInput.application) {
+    throw new AuthError("Wallet message-sign application does not match the expected challenge.");
+  }
+
+  if (challengeInput.chainId !== expectedInput.chainId) {
+    throw new AuthError("Wallet message-sign chain ID does not match the requested network.");
+  }
+
+  if (challengeInput.walletAddress !== expectedInput.walletAddress) {
+    throw new AuthError("Wallet message-sign address does not match the requested wallet.");
+  }
+
+  if (challengeInput.message !== expectedInput.message) {
+    throw new AuthError("Wallet message-sign message does not match the expected challenge.");
+  }
+
+  if (challengeInput.nonce !== expectedInput.nonce) {
+    throw new AuthError("Wallet message-sign nonce does not match the expected challenge.");
   }
 
   if (payload.chainId !== expectedInput.chainId) {

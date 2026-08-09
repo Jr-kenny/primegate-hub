@@ -19,12 +19,10 @@ export default function WalletPage() {
     isRefreshingNetwork,
     isReconnectingWallet,
     isVerifyingSession,
-    isWrongNetwork,
     networkName,
     session,
     shortAddress,
-    supportsSiwa,
-    refreshPrimeGateNetwork,
+    usesWalletMessageAuth,
   } = usePrimeGateWallet();
 
   const sessionExpiresAt = session ? new Date(session.expiresAt).toLocaleString() : null;
@@ -51,18 +49,6 @@ export default function WalletPage() {
           <div className="rounded-md border p-3 space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Network</p>
             <p className="text-lg font-bold">{networkName ?? "Unknown"}</p>
-            {isWrongNetwork && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-2"
-                onClick={() => void refreshPrimeGateNetwork()}
-                loading={isRefreshingNetwork}
-              >
-                {isRefreshingNetwork ? "Refreshing network..." : "Refresh wallet network"}
-              </Button>
-            )}
           </div>
           <div className="rounded-md border p-3 space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Wallet Status</p>
@@ -85,9 +71,9 @@ export default function WalletPage() {
               {sessionExpiresAt
                 ? `Expires ${sessionExpiresAt}`
                 : isConnected
-                  ? supportsSiwa
-                    ? "Click Sign In to approve the wallet sign-in request."
-                    : "Click Sign In to approve the wallet message-sign request."
+                  ? usesWalletMessageAuth
+                    ? "Click Sign In to approve the wallet message-sign request."
+                    : "Click Sign In to approve the wallet sign-in request."
                   : "Connect your wallet to sign in to PrimeGate."}
             </p>
             {lastSessionError && !hasSession && (
@@ -115,7 +101,7 @@ export default function WalletPage() {
         {isConnected ? (
           <div className="flex flex-wrap gap-2">
             {!hasSession && (
-              <Button type="button" loading={isVerifyingSession} onClick={() => void ensurePrimeGateSession()} disabled={isWrongNetwork}>
+              <Button type="button" loading={isVerifyingSession} onClick={() => void ensurePrimeGateSession()}>
                 {isVerifyingSession ? "Signing In..." : "Sign In"}
               </Button>
             )}

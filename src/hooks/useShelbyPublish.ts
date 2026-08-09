@@ -157,8 +157,6 @@ export function useShelbyPublish() {
     account,
     address,
     ensurePrimeGateSession,
-    isWrongNetwork,
-    requiredNetworkName,
     signTransaction,
   } = usePrimeGateWallet();
   const canPublish = useMemo(
@@ -527,10 +525,6 @@ export function useShelbyPublish() {
   const retryPublishedAssetListing = async (asset: { id: string; price: number }) => {
     if (!address || !account?.address) {
       throw new Error("Connect an Aptos wallet before retrying the listing.");
-    }
-
-    if (isWrongNetwork) {
-      throw new Error(`Switch your wallet to ${requiredNetworkName} before retrying the listing.`);
     }
 
     setRetryingListingId(asset.id);

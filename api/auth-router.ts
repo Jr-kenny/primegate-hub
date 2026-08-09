@@ -134,14 +134,18 @@ async function postVerify(request: Request) {
 
 async function postMessageNonce(request: Request) {
   try {
-    const body = (await request.json()) as { walletAddress?: string };
+    const body = (await request.json()) as { chainId?: number; walletAddress?: string };
     const walletAddress = body.walletAddress?.trim();
 
     if (!walletAddress) {
       return errorResponse("walletAddress is required.", 400);
     }
 
-    const signMessageResponse = await createPrimeGateSignMessageResponse(request, walletAddress);
+    const signMessageResponse = await createPrimeGateSignMessageResponse(
+      request,
+      walletAddress,
+      body.chainId,
+    );
     return jsonResponse(
       { data: signMessageResponse.payload },
       {

@@ -327,11 +327,12 @@ export function requestWalletSessionNonce(walletAddress: string) {
   });
 }
 
-export function requestWalletMessageChallenge(walletAddress: string) {
+export function requestWalletMessageChallenge(walletAddress: string, chainId?: number) {
   return requestJson<WalletMessageChallenge>("/api/auth/message/nonce", {
-    body: JSON.stringify({ walletAddress }),
+    body: JSON.stringify({ chainId, walletAddress }),
     method: "POST",
   }, {
+    chainId: chainId ?? null,
     walletAddress,
   });
 }

@@ -69,8 +69,6 @@ export default function Publish() {
     isConnected,
     isReconnectingWallet,
     isRefreshingNetwork,
-    refreshPrimeGateNetwork,
-    isWrongNetwork,
     shortAddress,
   } = usePrimeGateWallet();
   const { publishedAssets, publisherBilling } = usePrimeGateRegistry();
@@ -283,22 +281,6 @@ export default function Publish() {
           </div>
         )}
 
-        {isConnected && isWrongNetwork && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
-            <p className="text-sm font-medium text-destructive">Wrong network</p>
-            <p className="mt-1 text-xs text-muted-foreground">The connected wallet network does not match PrimeGate.</p>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-3"
-              onClick={() => void refreshPrimeGateNetwork()}
-              loading={isRefreshingNetwork}
-            >
-              {isRefreshingNetwork ? "Refreshing network..." : "Refresh wallet network"}
-            </Button>
-          </div>
-        )}
-
         <div className="grid gap-4">
           <div className="space-y-2">
             <Label htmlFor="publish-title">Package Name</Label>
@@ -463,7 +445,6 @@ export default function Publish() {
                 !isConnected ||
                 isReconnectingWallet ||
                 isRefreshingNetwork ||
-                isWrongNetwork ||
                 !title ||
                 !packageSlug ||
                 !releaseVersion ||

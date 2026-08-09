@@ -24,6 +24,10 @@ import {
   verifyWalletSessionSignature,
   type PrimeGateAuthDebugState,
 } from "@/lib/registry-api";
+import {
+  getPrimeGateWalletAuthChainId,
+  shouldUsePrimeGateWalletMessageAuth,
+} from "@/lib/primegate-wallet-auth";
 import { normalizeAptosAddress } from "@/services/aptos";
 import {
   clearPrimeGateSession,
@@ -296,9 +300,11 @@ function usePrimeGateWalletState() {
     wallet.connected &&
     !wallet.isLoading &&
     !isRefreshingNetwork &&
-    effectiveNetworkInfo !== null &&
-    networkName !== null &&
     networkName !== PRIMEGATE_APTOS_NETWORK;
+  const usesWalletMessageAuth = shouldUsePrimeGateWalletMessageAuth(
+    supportsSiwa,
+    networkName === PRIMEGATE_APTOS_NETWORK,
+  );
 
   useEffect(() => {
     const storedSession = getStoredPrimeGateSession();
@@ -336,11 +342,7 @@ function usePrimeGateWalletState() {
       throw new Error("The connected wallet name was not available.");
     }
 
-    if (isWrongNetwork) {
-      throw new Error(`Switch your wallet to ${PRIMEGATE_APTOS_NETWORK} before signing in to PrimeGate.`);
-    }
-
-    if (!supportsSiwa) {
+    if (usesWalletMessageAuth) {
       if (!wallet.signMessage) {
         throw new Error("The connected wallet does not support PrimeGate authentication.");
       }
@@ -350,7 +352,10 @@ function usePrimeGateWalletState() {
         throw new Error("The connected wallet did not expose a serializable public key.");
       }
 
-      const challenge = await requestWalletMessageChallenge(address);
+      const challenge = await requestWalletMessageChallenge(
+        address,
+        getPrimeGateWalletAuthChainId(effectiveNetworkInfo) ?? undefined,
+      );
       const output = await wallet.signMessage({
         address: true,
         application: true,
@@ -411,7 +416,7 @@ function usePrimeGateWalletState() {
     persistPrimeGateSession(nextSession);
     setSession(nextSession);
     return nextSession;
-  }, [address, isWrongNetwork, supportsSiwa, wallet]);
+  }, [address, effectiveNetworkInfo, usesWalletMessageAuth, wallet]);
 
   async function runSessionAttempt<T>(attempt: () => Promise<T>) {
     setIsVerifyingSession(true);
@@ -424,44 +429,6 @@ function usePrimeGateWalletState() {
       setIsVerifyingSession(false);
     }
   }
-
-  const refreshPrimeGateNetwork = async () => {
-    try {
-      if (!wallet.connected) {
-        throw new Error("Connect your wallet before refreshing its network.");
-      }
-
-      setIsRefreshingNetwork(true);
-      const connectedWallet = wallet.wallet;
-      if (!hasWalletNetworkFeature(connectedWallet)) {
-        setResolvedNetworkInfo(wallet.network);
-        return;
-      }
-
-      const networkInfo = await connectedWallet.features["aptos:network"].network();
-      setResolvedNetworkInfo(networkInfo);
-
-      toast({
-        title: "Wallet network refreshed",
-        description:
-          extractNamedWalletNetwork(networkInfo) === PRIMEGATE_APTOS_NETWORK
-            ? `Wallet is connected to ${PRIMEGATE_APTOS_NETWORK}.`
-            : "The wallet is still connected to a different network.",
-      });
-    } catch (error) {
-      toast({
-        title: "Network refresh failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "The wallet network could not be read.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsRefreshingNetwork(false);
-    }
-  };
 
   const clearSession = () => {
     pendingInteractiveSignInRef.current = false;
@@ -548,22 +515,23 @@ function usePrimeGateWalletState() {
       return;
     }
 
-    if (!wallet.connected || !wallet.account || !address || wallet.isLoading || session || isVerifyingSession || isWrongNetwork) {
+    if (!wallet.connected || !wallet.account || !address || wallet.isLoading || session || isVerifyingSession) {
       return;
     }
 
+    autoSignInAttemptedRef.current = address;
     pendingInteractiveSignInRef.current = false;
     void ensurePrimeGateSession().catch(() => {
       // ensurePrimeGateSession already records the error state.
     });
-  }, [address, ensurePrimeGateSession, isVerifyingSession, isWrongNetwork, session, wallet.account, wallet.connected, wallet.isLoading]);
+  }, [address, ensurePrimeGateSession, isVerifyingSession, session, wallet.account, wallet.connected, wallet.isLoading]);
 
   useEffect(() => {
     if (!address) {
       return;
     }
 
-    if (!wallet.connected || !wallet.account || wallet.isLoading || session || isVerifyingSession || isWrongNetwork) {
+    if (!wallet.connected || !wallet.account || wallet.isLoading || session || isVerifyingSession) {
       return;
     }
 
@@ -575,7 +543,7 @@ function usePrimeGateWalletState() {
     void ensurePrimeGateSessionSilently().catch(() => {
       // Silent auto sign-in; errors are logged but not surfaced as toasts.
     });
-  }, [address, ensurePrimeGateSessionSilently, isVerifyingSession, isWrongNetwork, session, wallet.account, wallet.connected, wallet.isLoading]);
+  }, [address, ensurePrimeGateSessionSilently, isVerifyingSession, session, wallet.account, wallet.connected, wallet.isLoading]);
 
   const connect = async (walletName?: string) => {
     setLastSessionError(null);
@@ -644,7 +612,7 @@ function usePrimeGateWalletState() {
     requiredNetworkName: PRIMEGATE_APTOS_NETWORK,
     session,
     shortAddress: address ? shortenAddress(address) : null,
-    refreshPrimeGateNetwork,
+    usesWalletMessageAuth,
   };
 }
 
