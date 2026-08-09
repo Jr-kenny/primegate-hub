@@ -8,6 +8,12 @@ import { normalizeAptAmount, parseAptAmountToOctas } from "../src/lib/aptos-amou
 import { readPrimeGateEnvValue } from "../src/lib/primegate-env.js";
 
 type SponsorSubmitBody = {
+  blobs?: unknown;
+  encoding?: unknown;
+  expirationMicros?: unknown;
+  blobName?: unknown;
+  storageProviderAcks?: unknown;
+  uid?: unknown;
   senderAuthenticatorHex?: unknown;
   transactionHex?: unknown;
   walletAddress?: unknown;
@@ -118,17 +124,14 @@ async function submitSponsoredTransaction(request: Request) {
 
     if (
       !isString(body.walletAddress) ||
-      !isString(body.transactionHex) ||
-      !isString(body.senderAuthenticatorHex) ||
-      (body.operation !== "shelby-registration" && body.operation !== "primegate-listing")
+      body.operation !== "shelby-registration-v2" &&
+      body.operation !== "shelby-commit-v2" &&
+      body.operation !== "primegate-listing"
     ) {
       return errorResponse("The sponsor transaction request was incomplete.", 400);
     }
 
     const authenticated = requireAuthenticatedWallet(request, body.walletAddress);
-
-    assertHexSize(body.transactionHex, "transactionHex", 2 + 64 * 1024 * 2);
-    assertHexSize(body.senderAuthenticatorHex, "senderAuthenticatorHex", 2 + 8 * 1024 * 2);
 
     const serviceUrl = getSponsorServiceUrl();
     const serviceToken = getSponsorServiceToken();
@@ -140,8 +143,15 @@ async function submitSponsoredTransaction(request: Request) {
 
     let serviceBody: Record<string, unknown>;
 
-    if (body.operation === "shelby-registration") {
-      if (!isString(body.attestationToken)) {
+    if (body.operation === "shelby-registration-v2") {
+      if (
+        !isString(body.attestationToken) ||
+        !Array.isArray(body.blobs) ||
+        typeof body.expirationMicros !== "number" ||
+        !Number.isSafeInteger(body.expirationMicros) ||
+        typeof body.encoding !== "number" ||
+        !Number.isSafeInteger(body.encoding)
+      ) {
         return errorResponse("The Shelby sponsor request is missing its publish attestation.", 400);
       }
 
@@ -152,13 +162,48 @@ async function submitSponsoredTransaction(request: Request) {
       }
 
       serviceBody = {
+        blobs: body.blobs,
+        encoding: body.encoding,
         expectedBlobNames: [claims.assetBlobName, claims.manifestBlobName],
-        operation: "shelby-registration",
-        senderAuthenticatorHex: body.senderAuthenticatorHex,
-        transactionHex: body.transactionHex,
+        expirationMicros: body.expirationMicros,
+        operation: "shelby-registration-v2",
+        walletAddress: authenticated.walletAddress,
+      };
+    } else if (body.operation === "shelby-commit-v2") {
+      if (
+        !isString(body.attestationToken) ||
+        !isString(body.blobName) ||
+        !isString(body.uid) ||
+        !/^\d+$/.test(body.uid) ||
+        !Array.isArray(body.storageProviderAcks)
+      ) {
+        return errorResponse("The Shelby commit sponsor request was incomplete.", 400);
+      }
+
+      const claims = verifyPublishAttestationToken(body.attestationToken);
+
+      if (claims.ownerAddress !== authenticated.walletAddress) {
+        throw new AuthError("The publish attestation does not match the authenticated wallet.", 401);
+      }
+
+      if (body.blobName !== claims.assetBlobName && body.blobName !== claims.manifestBlobName) {
+        return errorResponse("The Shelby commit does not match the active publish intent.", 400);
+      }
+
+      serviceBody = {
+        blobName: body.blobName,
+        operation: "shelby-commit-v2",
+        storageProviderAcks: body.storageProviderAcks,
+        uid: body.uid,
         walletAddress: authenticated.walletAddress,
       };
     } else {
+      if (!isString(body.transactionHex) || !isString(body.senderAuthenticatorHex)) {
+        return errorResponse("The PrimeGate listing sponsor request was incomplete.", 400);
+      }
+
+      assertHexSize(body.transactionHex, "transactionHex", 2 + 64 * 1024 * 2);
+      assertHexSize(body.senderAuthenticatorHex, "senderAuthenticatorHex", 2 + 8 * 1024 * 2);
       if (!isString(body.expectedPackageId) || !/^\d+$/.test(String(body.expectedPriceOctas ?? ""))) {
         return errorResponse("The PrimeGate listing sponsor request was incomplete.", 400);
       }

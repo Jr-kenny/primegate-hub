@@ -80,6 +80,7 @@ export type PrimeGatePublishedAssetRecord = {
   mimeType: string;
   originalFileName: string;
   ownerAddress: string;
+  storageAccount: string;
   packageHandle: string;
   packageSlug: string;
   price: number;

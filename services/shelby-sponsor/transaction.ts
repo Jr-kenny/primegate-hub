@@ -14,6 +14,7 @@ import {
 import {
   SHELBY_DEPLOYER,
   SHELBYUSD_FA_METADATA_ADDRESS,
+  ShelbyBlobClient,
 } from "@shelby-protocol/sdk/node";
 
 import {
@@ -25,6 +26,9 @@ import {
   PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL,
   PRIMEGATE_APTOS_NETWORK_NAME,
   PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+  PRIMEGATE_SHELBY_APTOS_NETWORK,
+  PRIMEGATE_SHELBY_APTOS_NUMERIC_CHAIN_ID,
+  PRIMEGATE_DEFAULT_SHELBY_APTOS_FULLNODE_URL,
 } from "../../src/config/primegate-network.js";
 
 const PRIMEGATE_SPONSOR_MAX_TRANSACTION_BYTES = 64 * 1024;
@@ -35,6 +39,15 @@ const PRIMEGATE_SPONSOR_DEFAULT_MIN_APT_OCTAS = 5_000_000n;
 const MAX_U64 = 18_446_744_073_709_551_615n;
 
 function createPrimeGateShelbyAptosClient() {
+  return new Aptos(
+    new AptosConfig({
+      network: PRIMEGATE_SHELBY_APTOS_NETWORK,
+      fullnode: PRIMEGATE_DEFAULT_SHELBY_APTOS_FULLNODE_URL,
+    }),
+  );
+}
+
+function createPrimeGateListingAptosClient() {
   return new Aptos(
     new AptosConfig({
       network: PRIMEGATE_APTOS_NETWORK,
@@ -51,6 +64,31 @@ export type SponsoredShelbyTransactionInput = {
   walletAddress: string;
 };
 
+export type ServerOwnedShelbyRegistrationInput = {
+  blobs: Array<{
+    blobMerkleRoot: string;
+    blobName: string;
+    blobSize: number;
+    numChunksets: number;
+  }>;
+  encoding: number;
+  expectedBlobNames: string[];
+  expirationMicros: number;
+  operation: "shelby-registration-v2";
+  walletAddress: string;
+};
+
+export type ServerOwnedShelbyCommitInput = {
+  blobName: string;
+  operation: "shelby-commit-v2";
+  storageProviderAcks: Array<{
+    signature: string;
+    slot: number;
+  }>;
+  uid: string;
+  walletAddress: string;
+};
+
 export type SponsoredPrimeGateListingInput = {
   expectedPackageId: string;
   expectedPriceOctas: string;
@@ -60,7 +98,11 @@ export type SponsoredPrimeGateListingInput = {
   walletAddress: string;
 };
 
-export type SponsoredTransactionInput = SponsoredShelbyTransactionInput | SponsoredPrimeGateListingInput;
+export type SponsoredTransactionInput =
+  | SponsoredShelbyTransactionInput
+  | ServerOwnedShelbyRegistrationInput
+  | ServerOwnedShelbyCommitInput
+  | SponsoredPrimeGateListingInput;
 
 export type ValidatedSponsoredShelbyTransaction = {
   senderAuthenticator: AccountAuthenticator;
@@ -246,6 +288,8 @@ function assertCommonTransactionFields(
   },
   walletAddress: string,
   sponsorAccount: Ed25519Account,
+  expectedChainId: number,
+  expectedNetworkName: string,
 ) {
   const wallet = AccountAddress.from(walletAddress);
 
@@ -260,9 +304,9 @@ function assertCommonTransactionFields(
     );
   }
 
-  if (transaction.rawTransaction.chain_id.chainId !== PRIMEGATE_APTOS_NUMERIC_CHAIN_ID) {
+  if (transaction.rawTransaction.chain_id.chainId !== expectedChainId) {
     throw new SponsorTransactionError(
-      `The sponsor service only accepts ${PRIMEGATE_APTOS_NETWORK_NAME} transactions.`,
+      `The sponsor service only accepts ${expectedNetworkName} transactions for this operation.`,
       400,
     );
   }
@@ -311,7 +355,13 @@ function validatePrimeGateListingTransaction(
 
   const transaction = deserializeSimpleTransaction(input.transactionHex);
   const senderAuthenticator = deserializeAuthenticator(input.senderAuthenticatorHex);
-  assertCommonTransactionFields(transaction, input.walletAddress, sponsorAccount);
+  assertCommonTransactionFields(
+    transaction,
+    input.walletAddress,
+    sponsorAccount,
+    PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+    PRIMEGATE_APTOS_NETWORK_NAME,
+  );
 
   const entryFunction = getEntryFunction(transaction);
 
@@ -411,18 +461,24 @@ export function getSponsorAccountAddress() {
 
 export type SponsorFundingStatus = {
   aptosReady: boolean;
+  listingAptosReady: boolean;
   shelbyUsdReady: boolean;
 };
 
 export async function getSponsorFundingStatus(): Promise<SponsorFundingStatus> {
   const sponsorAddress = getSponsorAccountAddress();
-  const aptos = createPrimeGateShelbyAptosClient();
-  const [aptosBalance, shelbyUsdBalance] = await Promise.all([
-    aptos.getBalance({
+  const shelbyAptos = createPrimeGateShelbyAptosClient();
+  const listingAptos = createPrimeGateListingAptosClient();
+  const [aptosBalance, listingAptosBalance, shelbyUsdBalance] = await Promise.all([
+    shelbyAptos.getBalance({
       accountAddress: sponsorAddress,
       asset: "0x1::aptos_coin::AptosCoin",
     }),
-    aptos.getBalance({
+    listingAptos.getBalance({
+      accountAddress: sponsorAddress,
+      asset: "0x1::aptos_coin::AptosCoin",
+    }),
+    shelbyAptos.getBalance({
       accountAddress: sponsorAddress,
       asset: SHELBYUSD_FA_METADATA_ADDRESS,
     }),
@@ -432,8 +488,25 @@ export async function getSponsorFundingStatus(): Promise<SponsorFundingStatus> {
     aptosReady:
       BigInt(aptosBalance) >=
       readMinimumBalance("PRIMEGATE_SPONSOR_MIN_APT_OCTAS", PRIMEGATE_SPONSOR_DEFAULT_MIN_APT_OCTAS),
+    listingAptosReady:
+      BigInt(listingAptosBalance) >=
+      readMinimumBalance("PRIMEGATE_SPONSOR_MIN_APT_OCTAS", PRIMEGATE_SPONSOR_DEFAULT_MIN_APT_OCTAS),
     shelbyUsdReady: BigInt(shelbyUsdBalance) > 0n,
   };
+}
+
+async function assertListingSponsorFunding() {
+  let funding: SponsorFundingStatus;
+
+  try {
+    funding = await getSponsorFundingStatus();
+  } catch {
+    throw new SponsorConfigurationError("The PrimeGate sponsor funding check is unavailable.");
+  }
+
+  if (!funding.listingAptosReady) {
+    throw new SponsorConfigurationError("The PrimeGate sponsor account needs Aptos Testnet APT to pay listing fees.");
+  }
 }
 
 async function assertSponsorFunding() {
@@ -472,7 +545,13 @@ export function validateSponsoredShelbyTransaction(
     throw new SponsorTransactionError("The PrimeGate sponsor is not the Shelby transaction signer.", 400);
   }
 
-  assertCommonTransactionFields(transaction, input.walletAddress, sponsorAccount);
+  assertCommonTransactionFields(
+    transaction,
+    input.walletAddress,
+    sponsorAccount,
+    PRIMEGATE_SHELBY_APTOS_NUMERIC_CHAIN_ID,
+    "shelbynet",
+  );
 
   const entryFunction = getEntryFunction(transaction);
 
@@ -509,6 +588,126 @@ export async function submitSponsoredShelbyTransaction(
   });
 }
 
+export function validateServerOwnedShelbyRegistration(input: ServerOwnedShelbyRegistrationInput) {
+  const expectedNames = input.expectedBlobNames.map((name) => name.trim());
+  if (
+    expectedNames.length === 0 ||
+    input.blobs.length !== expectedNames.length ||
+    input.blobs.some((blob, index) => blob.blobName !== expectedNames[index])
+  ) {
+    throw new SponsorTransactionError(
+      "The Shelby registration does not match the active PrimeGate publish intent.",
+      400,
+    );
+  }
+
+  if (
+    !Number.isSafeInteger(input.expirationMicros) ||
+    input.expirationMicros <= Date.now() * 1000 ||
+    input.expirationMicros > Date.now() * 1000 + 366 * 24 * 60 * 60 * 1_000_000
+  ) {
+    throw new SponsorTransactionError("The Shelby registration expiration is invalid.", 400);
+  }
+
+  if (!Number.isInteger(input.encoding) || input.encoding < 0 || input.encoding > 255) {
+    throw new SponsorTransactionError("The Shelby registration encoding is invalid.", 400);
+  }
+
+  for (const blob of input.blobs) {
+    if (
+      !/^0x[a-f0-9]{64}$/i.test(blob.blobMerkleRoot) ||
+      !Number.isSafeInteger(blob.blobSize) ||
+      blob.blobSize <= 0 ||
+      !Number.isSafeInteger(blob.numChunksets) ||
+      blob.numChunksets <= 0
+    ) {
+      throw new SponsorTransactionError("The Shelby blob registration data is invalid.", 400);
+    }
+  }
+}
+
+export async function submitServerOwnedShelbyRegistration(
+  input: ServerOwnedShelbyRegistrationInput,
+): Promise<PendingTransactionResponse> {
+  validateServerOwnedShelbyRegistration(input);
+  await assertSponsorFunding();
+
+  const sponsorAccount = parseSponsorAccount();
+  const aptos = createPrimeGateShelbyAptosClient();
+  const transaction = await aptos.transaction.build.simple({
+    data: ShelbyBlobClient.createBatchRegisterBlobsPayload({
+      account: sponsorAccount.accountAddress,
+      blobs: input.blobs,
+      encoding: input.encoding,
+      expirationMicros: input.expirationMicros,
+    }),
+    options: {
+      maxGasAmount: Number(PRIMEGATE_SPONSOR_MAX_GAS_AMOUNT),
+    },
+    sender: sponsorAccount.accountAddress,
+  });
+  const senderAuthenticator = sponsorAccount.signTransactionWithAuthenticator(transaction);
+
+  return aptos.transaction.submit.simple({
+    senderAuthenticator,
+    transaction,
+  });
+}
+
+export async function submitServerOwnedShelbyCommit(
+  input: ServerOwnedShelbyCommitInput,
+): Promise<PendingTransactionResponse> {
+  validateServerOwnedShelbyCommit(input);
+  await assertSponsorFunding();
+  const sponsorAccount = parseSponsorAccount();
+  const aptos = createPrimeGateShelbyAptosClient();
+  const transaction = await aptos.transaction.build.simple({
+    data: ShelbyBlobClient.createCommitObjectPayload({
+      blobName: input.blobName,
+      overwrite: true,
+      storageProviderAcks: input.storageProviderAcks.map((ack) => ({
+        signature: Uint8Array.from(Buffer.from(ack.signature.slice(2), "hex")),
+        slot: ack.slot,
+      })),
+      uid: BigInt(input.uid),
+    }),
+    options: {
+      maxGasAmount: Number(PRIMEGATE_SPONSOR_MAX_GAS_AMOUNT),
+    },
+    sender: sponsorAccount.accountAddress,
+  });
+  const senderAuthenticator = sponsorAccount.signTransactionWithAuthenticator(transaction);
+
+  return aptos.transaction.submit.simple({
+    senderAuthenticator,
+    transaction,
+  });
+}
+
+export function validateServerOwnedShelbyCommit(input: ServerOwnedShelbyCommitInput) {
+  if (!/^\d+$/.test(input.uid) || !input.blobName.trim()) {
+    throw new SponsorTransactionError("The Shelby commit target is invalid.", 400);
+  }
+
+  if (
+    input.storageProviderAcks.length === 0 ||
+    input.storageProviderAcks.some(
+      (ack) =>
+        !Number.isInteger(ack.slot) ||
+        ack.slot < 0 ||
+        ack.slot > 31 ||
+        !/^0x(?:[a-f0-9]{2})+$/i.test(ack.signature),
+    )
+  ) {
+    throw new SponsorTransactionError("The Shelby storage provider acknowledgements are invalid.", 400);
+  }
+
+  const uniqueSlots = new Set(input.storageProviderAcks.map((ack) => ack.slot));
+  if (uniqueSlots.size !== input.storageProviderAcks.length) {
+    throw new SponsorTransactionError("The Shelby storage provider acknowledgements contain duplicate slots.", 400);
+  }
+}
+
 export function validateSponsoredPrimeGateListingTransaction(input: SponsoredPrimeGateListingInput) {
   const sponsorAccount = parseSponsorAccount();
   return validatePrimeGateListingTransaction(input, sponsorAccount);
@@ -518,8 +717,8 @@ export async function submitSponsoredPrimeGateListingTransaction(
   input: SponsoredPrimeGateListingInput,
 ): Promise<PendingTransactionResponse> {
   const validated = validatePrimeGateListingTransaction(input, parseSponsorAccount());
-  await assertSponsorFunding();
-  const aptos = createPrimeGateShelbyAptosClient();
+  await assertListingSponsorFunding();
+  const aptos = createPrimeGateListingAptosClient();
   const sponsorAuthenticator = validated.sponsorAccount.signTransactionWithAuthenticator(validated.transaction);
 
   return aptos.transaction.submit.simple({

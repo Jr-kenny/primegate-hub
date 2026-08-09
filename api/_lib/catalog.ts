@@ -301,6 +301,7 @@ function mapPublishedAssetRow(row: Record<string, unknown>): PrimeGatePublishedA
     mimeType: String(row.mime_type),
     originalFileName: String(row.original_file_name),
     ownerAddress: String(row.owner_address),
+    storageAccount: String(row.storage_account ?? row.owner_address),
     packageHandle: buildPublishedAssetPackageHandle(row),
     packageSlug: String(row.package_slug),
     price: Number(row.price),
@@ -416,6 +417,7 @@ export async function listPackages() {
       mime_type,
       original_file_name,
       owner_address,
+      storage_account,
       package_slug,
       price,
       readme_markdown,
@@ -737,6 +739,7 @@ export async function listPublishedAssets(ownerAddress: string) {
       mime_type,
       original_file_name,
       owner_address,
+      storage_account,
       package_slug,
       price,
       readme_markdown,
@@ -776,6 +779,7 @@ export async function getPublishedAssetById(id: string) {
       mime_type,
       original_file_name,
       owner_address,
+      storage_account,
       package_slug,
       price,
       readme_markdown,
@@ -1374,6 +1378,7 @@ const publishedAssetSchema = z.object({
   mimeType: z.string().min(1),
   originalFileName: z.string().min(1),
   ownerAddress: z.string().min(1),
+  storageAccount: z.string().min(1),
   packageSlug: z.string().min(1),
   priceApt: z.string().min(1),
   readmeMarkdown: z.string().max(50_000).default(""),
@@ -1460,6 +1465,7 @@ export async function savePublishedAsset(input: unknown) {
       ciphertext_size_bytes,
       encryption_json,
       owner_address,
+      storage_account,
       package_slug,
       release_version,
       manifest_ciphertext_size_bytes,
@@ -1473,6 +1479,7 @@ export async function savePublishedAsset(input: unknown) {
     const existing = existingRows[0];
     if (
       String(existing.owner_address).toLowerCase() !== asset.ownerAddress.toLowerCase() ||
+      String(existing.storage_account ?? existing.owner_address).toLowerCase() !== asset.storageAccount.toLowerCase() ||
       String(existing.asset_blob_name) !== asset.assetBlobName ||
       String(existing.asset_sha256 ?? "") !== asset.assetSha256 ||
       Number(existing.ciphertext_size_bytes) !== asset.ciphertextSizeBytes ||
@@ -1512,6 +1519,7 @@ export async function savePublishedAsset(input: unknown) {
     insert into published_assets (
       id,
       owner_address,
+      storage_account,
       package_slug,
       release_version,
       title,
@@ -1540,6 +1548,7 @@ export async function savePublishedAsset(input: unknown) {
     values (
       ${asset.id},
       ${asset.ownerAddress},
+      ${asset.storageAccount},
       ${asset.packageSlug},
       ${asset.releaseVersion},
       ${asset.title},
@@ -1577,6 +1586,7 @@ export async function savePublishedAsset(input: unknown) {
       mime_type,
       original_file_name,
       owner_address,
+      storage_account,
       package_slug,
       price,
       readme_markdown,

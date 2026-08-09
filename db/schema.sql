@@ -61,6 +61,7 @@ create table if not exists registry_reviews (
 create table if not exists published_assets (
   id text primary key,
   owner_address text not null,
+  storage_account text not null,
   package_slug text not null,
   release_version text not null,
   title text not null,
@@ -88,6 +89,9 @@ create table if not exists published_assets (
 );
 
 alter table published_assets add column if not exists package_slug text;
+alter table published_assets add column if not exists storage_account text;
+update published_assets set storage_account = owner_address where storage_account is null or btrim(storage_account) = '';
+alter table published_assets alter column storage_account set not null;
 alter table published_assets add column if not exists release_version text;
 alter table published_assets add column if not exists license text not null default 'Custom';
 alter table published_assets add column if not exists keywords_json text not null default '[]';

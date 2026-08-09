@@ -31,6 +31,7 @@ import { Aptos, AptosConfig, Ed25519Account, Ed25519PrivateKey } from "@aptos-la
 import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
 import {
   PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_SHELBY_APTOS_NETWORK,
   PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL,
 } from "../config/primegate-network";
 
@@ -475,7 +476,7 @@ async function runPublish(options: CliOptions) {
   const aptos = new Aptos(new AptosConfig({ network: PRIMEGATE_APTOS_NETWORK }));
   const shelbyClient = new ShelbyNodeClient({
     apiKey: shelbyApiKey,
-    network: PRIMEGATE_APTOS_NETWORK,
+    network: PRIMEGATE_SHELBY_APTOS_NETWORK,
     rpc: {
       baseUrl: shelbyRpcBaseUrl,
     },

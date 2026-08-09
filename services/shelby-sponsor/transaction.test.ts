@@ -12,11 +12,16 @@ import {
 } from "@aptos-labs/ts-sdk";
 import { SHELBY_DEPLOYER } from "@shelby-protocol/sdk/node";
 
-import { PRIMEGATE_APTOS_NUMERIC_CHAIN_ID } from "../../src/config/primegate-network.js";
+import {
+  PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+  PRIMEGATE_SHELBY_APTOS_NUMERIC_CHAIN_ID,
+} from "../../src/config/primegate-network.js";
 import { PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS } from "../../src/lib/primegate-registry-contract.js";
 import {
   validateSponsoredPrimeGateListingTransaction,
   validateSponsoredShelbyTransaction,
+  validateServerOwnedShelbyCommit,
+  validateServerOwnedShelbyRegistration,
 } from "./transaction.js";
 
 function buildSponsoredTransaction() {
@@ -65,7 +70,7 @@ function buildSponsoredTransaction() {
     50_000n,
     100n,
     BigInt(Math.floor(Date.now() / 1000) + 600),
-    new ChainId(PRIMEGATE_APTOS_NUMERIC_CHAIN_ID),
+    new ChainId(PRIMEGATE_SHELBY_APTOS_NUMERIC_CHAIN_ID),
   );
 
   return {
@@ -201,5 +206,35 @@ describe("PrimeGate Shelby sponsor transaction validation", () => {
 
     expect(validated.transaction.rawTransaction.sender.equals(sender.accountAddress)).toBe(true);
     expect(validated.transaction.rawTransaction.payload).toBeInstanceOf(TransactionPayloadEntryFunction);
+  });
+
+  it("accepts sponsor-owned registration and commit data", () => {
+    const blobName = "primegate/content/test-id/asset.bin";
+
+    expect(() =>
+      validateServerOwnedShelbyRegistration({
+        blobs: [{
+          blobMerkleRoot: `0x${"11".repeat(32)}`,
+          blobName,
+          blobSize: 128,
+          numChunksets: 1,
+        }],
+        encoding: 0,
+        expectedBlobNames: [blobName],
+        expirationMicros: Date.now() * 1000 + 86_400_000_000,
+        operation: "shelby-registration-v2",
+        walletAddress: Account.generate().accountAddress.toString(),
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      validateServerOwnedShelbyCommit({
+        blobName,
+        operation: "shelby-commit-v2",
+        storageProviderAcks: [{ signature: `0x${"22".repeat(64)}`, slot: 0 }],
+        uid: "1",
+        walletAddress: Account.generate().accountAddress.toString(),
+      }),
+    ).not.toThrow();
   });
 });

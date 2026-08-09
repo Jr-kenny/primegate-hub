@@ -1,6 +1,6 @@
 import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
 import {
-  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_SHELBY_APTOS_NETWORK,
   PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL,
 } from "../../src/config/primegate-network.js";
 import { readPrimeGateEnvValue } from "../../src/lib/primegate-env.js";
@@ -27,7 +27,7 @@ export function getShelbyClient() {
   if (!shelbyClient) {
     shelbyClient = new ShelbyNodeClient({
       apiKey: getShelbyApiKey(),
-      network: PRIMEGATE_APTOS_NETWORK,
+      network: PRIMEGATE_SHELBY_APTOS_NETWORK,
       rpc: {
         baseUrl: getShelbyRpcBaseUrl(),
       },

@@ -6,6 +6,8 @@ import {
   SponsorTransactionError,
   getSponsorAccountAddress,
   getSponsorFundingStatus,
+  submitServerOwnedShelbyCommit,
+  submitServerOwnedShelbyRegistration,
   submitSponsoredPrimeGateListingTransaction,
   submitSponsoredShelbyTransaction,
   type SponsoredTransactionInput,
@@ -61,7 +63,7 @@ export async function getSponsorReadinessStatus() {
     const funding = await getSponsorFundingStatus();
     return {
       ...health,
-      fundingReady: funding.aptosReady && funding.shelbyUsdReady,
+      fundingReady: funding.aptosReady && funding.listingAptosReady && funding.shelbyUsdReady,
     };
   } catch {
     return {
@@ -134,12 +136,58 @@ function parseRequestBody(rawBody: string): SponsoredTransactionInput {
     throw new SponsorTransactionError("The sponsor request body was not valid JSON.", 400);
   }
 
-  if (
-    typeof body.operation !== "string" ||
-    typeof body.walletAddress !== "string" ||
-    typeof body.transactionHex !== "string" ||
-    typeof body.senderAuthenticatorHex !== "string"
-  ) {
+  if (typeof body.operation !== "string" || typeof body.walletAddress !== "string") {
+    throw new SponsorTransactionError("The sponsor request was missing required transaction fields.", 400);
+  }
+
+  if (body.operation === "shelby-registration-v2") {
+    if (
+      !Array.isArray(body.expectedBlobNames) ||
+      body.expectedBlobNames.some((name) => typeof name !== "string") ||
+      !Array.isArray(body.blobs) ||
+      typeof body.encoding !== "number" ||
+      typeof body.expirationMicros !== "number"
+    ) {
+      throw new SponsorTransactionError("The Shelby sponsor request was incomplete.", 400);
+    }
+
+    return {
+      blobs: body.blobs as Array<{
+        blobMerkleRoot: string;
+        blobName: string;
+        blobSize: number;
+        numChunksets: number;
+      }>,
+      encoding: body.encoding,
+      expectedBlobNames: body.expectedBlobNames,
+      expirationMicros: body.expirationMicros,
+      operation: "shelby-registration-v2",
+      walletAddress: body.walletAddress,
+    };
+  }
+
+  if (body.operation === "shelby-commit-v2") {
+    if (
+      typeof body.blobName !== "string" ||
+      typeof body.uid !== "string" ||
+      !Array.isArray(body.storageProviderAcks)
+    ) {
+      throw new SponsorTransactionError("The Shelby commit sponsor request was incomplete.", 400);
+    }
+
+    return {
+      blobName: body.blobName,
+      operation: "shelby-commit-v2",
+      storageProviderAcks: body.storageProviderAcks as Array<{
+        signature: string;
+        slot: number;
+      }>,
+      uid: body.uid,
+      walletAddress: body.walletAddress,
+    };
+  }
+
+  if (typeof body.transactionHex !== "string" || typeof body.senderAuthenticatorHex !== "string") {
     throw new SponsorTransactionError("The sponsor request was missing required transaction fields.", 400);
   }
 
@@ -250,9 +298,13 @@ export async function handleSponsorRequest(request: IncomingMessage, response: S
   try {
     const input = parseRequestBody(await readRequestBody(request));
     const pendingTransaction =
-      input.operation === "shelby-registration"
-        ? await submitSponsoredShelbyTransaction(input)
-        : await submitSponsoredPrimeGateListingTransaction(input);
+      input.operation === "shelby-registration-v2"
+        ? await submitServerOwnedShelbyRegistration(input)
+        : input.operation === "shelby-commit-v2"
+          ? await submitServerOwnedShelbyCommit(input)
+        : input.operation === "shelby-registration"
+          ? await submitSponsoredShelbyTransaction(input)
+          : await submitSponsoredPrimeGateListingTransaction(input);
     writeJson(response, 200, { hash: pendingTransaction.hash });
   } catch (error) {
     const status = getErrorStatus(error);

@@ -6,6 +6,10 @@ type PrimeGateGasEstimate = {
 };
 
 type PrimeGateTransactionResponse = {
+  events?: Array<{
+    data: Record<string, unknown>;
+    type: string;
+  }>;
   hash?: string;
   success?: boolean;
   type?: string;
@@ -63,8 +67,9 @@ export async function getPrimeGateTransactionOptions(
   }
 }
 
-export async function waitForPrimeGateTransaction(
+export async function waitForPrimeGateTransactionAt(
   transactionHash: string,
+  fullnodeUrl: string,
   {
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
     timeoutMs = DEFAULT_WAIT_TIMEOUT_MS,
@@ -73,7 +78,7 @@ export async function waitForPrimeGateTransaction(
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const response = await fetch(`${PRIMEGATE_APTOS_FULLNODE_URL}/transactions/by_hash/${transactionHash}`, {
+    const response = await fetch(`${fullnodeUrl}/transactions/by_hash/${transactionHash}`, {
       headers: {
         Accept: "application/json",
       },
@@ -102,4 +107,11 @@ export async function waitForPrimeGateTransaction(
   }
 
   throw new Error("Timed out while waiting for the Aptos transaction to complete.");
+}
+
+export function waitForPrimeGateTransaction(
+  transactionHash: string,
+  options?: { pollIntervalMs?: number; timeoutMs?: number },
+) {
+  return waitForPrimeGateTransactionAt(transactionHash, PRIMEGATE_APTOS_FULLNODE_URL, options);
 }

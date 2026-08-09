@@ -28,10 +28,6 @@ import {
   getPrimeGateWalletAuthChainId,
   shouldUsePrimeGateWalletMessageAuth,
 } from "@/lib/primegate-wallet-auth";
-import {
-  isPrimeGateTransactionNetwork,
-  requestPrimeGateTransactionNetwork,
-} from "@/lib/primegate-wallet-network";
 import { normalizeAptosAddress } from "@/services/aptos";
 import {
   clearPrimeGateSession,
@@ -310,6 +306,35 @@ function usePrimeGateWalletState() {
     networkName === PRIMEGATE_APTOS_NETWORK,
   );
 
+  const ensurePrimeGateTransactionNetwork = useCallback(async () => {
+    if (!wallet.connected) {
+      throw new Error("Connect your wallet before publishing a paid listing.");
+    }
+
+    if (networkName === PRIMEGATE_APTOS_NETWORK) {
+      return;
+    }
+
+    setIsRefreshingNetwork(true);
+
+    try {
+      await wallet.changeNetwork(PRIMEGATE_APTOS_NETWORK);
+
+      if (!walletHasNetworkFeature) {
+        return;
+      }
+
+      const networkInfo = await wallet.wallet.features["aptos:network"].network();
+      setResolvedNetworkInfo(networkInfo);
+
+      if (extractNamedWalletNetwork(networkInfo) !== PRIMEGATE_APTOS_NETWORK) {
+        throw new Error("Switch Nightly to Aptos Testnet before publishing the paid listing.");
+      }
+    } finally {
+      setIsRefreshingNetwork(false);
+    }
+  }, [networkName, wallet, walletHasNetworkFeature]);
+
   useEffect(() => {
     const storedSession = getStoredPrimeGateSession();
 
@@ -425,37 +450,6 @@ function usePrimeGateWalletState() {
     setSession(nextSession);
     return nextSession;
   }, [address, effectiveNetworkInfo, resolvedNetworkInfo, usesWalletMessageAuth, wallet, walletHasNetworkFeature]);
-
-  const ensurePrimeGateTransactionNetwork = useCallback(async () => {
-    if (!wallet.connected || !wallet.wallet?.name) {
-      throw new Error("Connect an Aptos wallet before signing a PrimeGate transaction.");
-    }
-
-    if (isPrimeGateTransactionNetwork(effectiveNetworkInfo)) {
-      return effectiveNetworkInfo;
-    }
-
-    await requestPrimeGateTransactionNetwork(wallet.wallet.features, wallet.wallet.name);
-
-    if (!walletHasNetworkFeature) {
-      return {
-        chainId: 118,
-        name: PRIMEGATE_APTOS_NETWORK,
-      } satisfies NetworkInfo;
-    }
-
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const nextNetwork = await wallet.wallet.features["aptos:network"].network();
-      if (isPrimeGateTransactionNetwork(nextNetwork)) {
-        setResolvedNetworkInfo(nextNetwork);
-        return nextNetwork;
-      }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 200));
-    }
-
-    throw new Error(`${wallet.wallet.name} did not switch to Shelbynet.`);
-  }, [effectiveNetworkInfo, wallet.connected, wallet.wallet, walletHasNetworkFeature]);
 
   async function runSessionAttempt<T>(attempt: () => Promise<T>) {
     setIsVerifyingSession(true);

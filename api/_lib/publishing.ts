@@ -60,6 +60,7 @@ const publishIntentClaimsSchema = createPublishIntentSchema.extend({
   id: z.string().uuid(),
   manifestBlobName: z.string().min(1),
   ownerAddress: z.string().min(1),
+  storageAccount: z.string().min(1),
 });
 
 const strictPublishedManifestSchema = z.object({
@@ -82,6 +83,7 @@ const strictPublishedManifestSchema = z.object({
   mimeType: z.string().min(1),
   originalFileName: z.string().min(1),
   ownerAddress: z.string().min(1),
+  storageAccount: z.string().min(1),
   packageSlug: z.string().min(1),
   priceApt: z.string().min(1),
   publishAttestation: z.string().min(1),
@@ -166,6 +168,15 @@ function assertConfiguredUploadLimit(sizeBytes: number) {
 
 function normalizeWalletAddress(address: string) {
   return AccountAddress.from(address).toStringLong().toLowerCase();
+}
+
+function getPrimeGateStorageAccount() {
+  const address = readPrimeGateEnvValue(process.env.PRIMEGATE_SHELBY_SPONSOR_ADDRESS);
+  if (!address) {
+    throw new Error("PRIMEGATE_SHELBY_SPONSOR_ADDRESS is not configured.");
+  }
+
+  return normalizeWalletAddress(address);
 }
 
 function signPublishValue(value: string) {
@@ -387,6 +398,10 @@ function assertIntentMatchesManifest(
     throw new AuthError("Published manifest owner does not match the PrimeGate intent.", 400);
   }
 
+  if (normalizeWalletAddress(manifest.storageAccount) !== claims.storageAccount) {
+    throw new AuthError("Published manifest storage account does not match the PrimeGate intent.", 400);
+  }
+
   if (manifest.publishIntentId !== claims.id) {
     throw new AuthError("Published manifest intent id does not match the PrimeGate intent.", 400);
   }
@@ -496,6 +511,7 @@ export async function createPublishIntent(ownerAddress: string, input: unknown) 
     id,
     manifestBlobName: `primegate/content/${id}/manifest.bin`,
     ownerAddress: normalizedOwnerAddress,
+    storageAccount: getPrimeGateStorageAccount(),
   });
 
   return {
@@ -506,6 +522,7 @@ export async function createPublishIntent(ownerAddress: string, input: unknown) 
     id: claims.id,
     manifestBlobName: claims.manifestBlobName,
     ownerAddress: claims.ownerAddress,
+    storageAccount: claims.storageAccount,
     billing,
   };
 }
@@ -532,11 +549,11 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
   const shelby = getShelbyClient();
   const [assetMetadata, manifestMetadata] = await Promise.all([
     shelby.coordination.getBlobMetadata({
-      account: claims.ownerAddress,
+      account: claims.storageAccount,
       name: claims.assetBlobName,
     }),
     shelby.coordination.getBlobMetadata({
-      account: claims.ownerAddress,
+      account: claims.storageAccount,
       name: claims.manifestBlobName,
     }),
   ]);
@@ -549,7 +566,7 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
     throw new AuthError("PrimeGate could not verify the uploaded manifest on Shelby.", 400);
   }
 
-  const manifest = await readPublishedManifest(claims.ownerAddress, claims.manifestBlobName, {
+  const manifest = await readPublishedManifest(claims.storageAccount, claims.manifestBlobName, {
     contentKey,
   });
 
@@ -561,13 +578,13 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
 
   const assetDownload = (range?: { end: number; start: number }) =>
     shelby.download({
-      account: claims.ownerAddress,
+      account: claims.storageAccount,
       blobName: claims.assetBlobName,
       range,
     });
   const manifestDownload = (range?: { end: number; start: number }) =>
     shelby.download({
-      account: claims.ownerAddress,
+      account: claims.storageAccount,
       blobName: claims.manifestBlobName,
       range,
     });
@@ -605,6 +622,7 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
     mimeType: claims.mimeType,
     originalFileName: claims.originalFileName,
     ownerAddress: claims.ownerAddress,
+    storageAccount: claims.storageAccount,
     packageSlug: claims.packageSlug,
     priceApt: claims.priceApt,
     readmeMarkdown: claims.readmeMarkdown,

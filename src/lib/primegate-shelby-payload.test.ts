@@ -19,9 +19,9 @@ describe("PrimeGate Shelby registration payload", () => {
       expirationMicros: 1_800_000_000_000_000,
     });
 
-    expect(payload.function).toContain("::blob_metadata::register_multiple_blobs_with_sponsor");
-    expect(payload.functionArguments).toHaveLength(10);
-    expect(payload.functionArguments?.slice(0, 4)).toEqual([
+    expect("function" in payload && payload.function).toContain("::blob_metadata::register_multiple_blobs_with_sponsor");
+    expect("functionArguments" in payload && payload.functionArguments).toHaveLength(10);
+    expect("functionArguments" in payload && payload.functionArguments?.slice(0, 4)).toEqual([
       ["packages/example/1.0.0/package.tgz"],
       null,
       null,

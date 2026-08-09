@@ -248,7 +248,7 @@ export async function getPackageResolution(
   if (entitled) {
     try {
       manifest = await readPublishedManifest(
-        publishedAsset.ownerAddress,
+        publishedAsset.storageAccount,
         publishedAsset.manifestBlobName,
         decryptionContext
           ? {
@@ -312,7 +312,7 @@ export async function getPublishedPackageManifest(request: Request, packageId: s
 
   const decryptionContext = await getPublishedAssetDecryptionContext(packageId);
   const manifest = await readPublishedManifest(
-    publishedAsset.ownerAddress,
+    publishedAsset.storageAccount,
     publishedAsset.manifestBlobName,
     decryptionContext
       ? {
@@ -354,7 +354,7 @@ export async function downloadPublishedPackageArtifact(request: Request, package
 
   const decryptionContext = await getPublishedAssetDecryptionContext(packageId);
   const assetStream = await openPublishedAssetStream(
-    publishedAsset.ownerAddress,
+    publishedAsset.storageAccount,
     publishedAsset.assetBlobName,
     range ?? undefined,
     decryptionContext

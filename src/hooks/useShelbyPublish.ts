@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  createBlobKey,
   createDefaultErasureCodingProvider,
   expectedTotalChunksets,
   generateCommitments,
+  requiredAckCount,
+  SHELBY_DEPLOYER,
+  ShelbyBlobClient,
 } from "@shelby-protocol/sdk/browser";
 import { AccountAddress, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 
@@ -16,10 +20,14 @@ import {
 } from "@/config/web3-constants";
 import { shelbyClient } from "@/config/web3";
 import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
-import { getPrimeGateTransactionOptions, waitForPrimeGateTransaction } from "@/lib/aptos-client";
+import {
+  getPrimeGateTransactionOptions,
+  waitForPrimeGateTransaction,
+  waitForPrimeGateTransactionAt,
+} from "@/lib/aptos-client";
 import { normalizeAptAmount, parseAptAmountToOctas } from "@/lib/aptos-amount";
 import { assertPrimeGateShelbyRpcReachable } from "@/lib/primegate-shelby-rpc";
-import { createPrimeGateBatchRegisterBlobsPayload } from "@/lib/primegate-shelby-payload";
+import { PRIMEGATE_DEFAULT_SHELBY_APTOS_FULLNODE_URL } from "@/config/primegate-network";
 import {
   withPrimeGatePublishStage,
   getPrimeGatePublishErrorMessage,
@@ -84,6 +92,7 @@ type PrimeGatePublishedManifest = {
   mimeType: string;
   originalFileName: string;
   ownerAddress: string;
+  storageAccount: string;
   packageSlug: string;
   priceApt: string;
   publishAttestation: string;
@@ -312,6 +321,7 @@ export function useShelbyPublish() {
         mimeType,
         originalFileName: file.name,
         ownerAddress: address,
+        storageAccount: publishIntent.storageAccount,
         packageSlug: normalizedPackageSlug,
         priceApt: normalizedPriceApt,
         publishAttestation: publishIntent.attestationToken,
@@ -350,18 +360,13 @@ export function useShelbyPublish() {
       if (manifestCommitments.raw_data_size !== manifestEncryption.ciphertextSize) {
         throw new Error("PrimeGate encrypted manifest size did not match Shelby commitment size.");
       }
-      const shelbyBuildOptions = await getPrimeGateTransactionOptions(50_000);
       const shelbyExpirationMicros = Date.now() * 1000 + PRIMEGATE_DEFAULT_BLOB_TTL_MICROS;
       const sponsorConfig = await withPrimeGatePublishStage(
         "Shelby sponsor configuration",
         () => fetchPrimeGateShelbySponsorConfig(),
       );
       assertSponsorServiceAvailable(sponsorConfig);
-      await withPrimeGatePublishStage("wallet network", () =>
-        ensurePrimeGateTransactionNetwork(),
-      );
       const blobRegistration = {
-        account: AccountAddress.from(account.address),
         expirationMicros: shelbyExpirationMicros,
         blobs: [
           {
@@ -386,40 +391,39 @@ export function useShelbyPublish() {
         encoding: provider.config.enumIndex,
       };
 
-      const aptos = new Aptos(new AptosConfig({ network: PRIMEGATE_APTOS_NETWORK }));
       const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
       assertSponsorAccountIsDistinctFromPublisher(account.address, sponsorAddress);
-      const sponsoredTransaction = await withPrimeGatePublishStage(
-        "Shelby transaction preparation",
-        () =>
-          aptos.transaction.build.multiAgent({
-            data: createPrimeGateBatchRegisterBlobsPayload(blobRegistration),
-            options: shelbyBuildOptions,
-            secondarySignerAddresses: [sponsorAddress],
-            sender: AccountAddress.from(account.address),
-            withFeePayer: true,
-          }),
-      );
-
-      sponsoredTransaction.feePayerAddress = sponsorAddress;
-      const signedTransaction = await withPrimeGatePublishStage("wallet signature", () =>
-        signTransaction({
-          transactionOrPayload: sponsoredTransaction,
-        }),
-      );
       const pendingShelbyRegistration = await withPrimeGatePublishStage("sponsor submission", () =>
         submitPrimeGateShelbySponsorTransaction({
           attestationToken: publishIntent.attestationToken,
-          operation: "shelby-registration",
-          senderAuthenticatorHex: signedTransaction.authenticator.bcsToHex().toString(),
-          transactionHex: sponsoredTransaction.bcsToHex().toString(),
+          ...blobRegistration,
+          operation: "shelby-registration-v2",
           walletAddress: address,
         }),
       );
 
-      await withPrimeGatePublishStage("Shelby registration confirmation", () =>
-        waitForPrimeGateTransaction(pendingShelbyRegistration.hash),
+      const confirmedShelbyRegistration = await withPrimeGatePublishStage("Shelby registration confirmation", () =>
+        waitForPrimeGateTransactionAt(
+          pendingShelbyRegistration.hash,
+          PRIMEGATE_DEFAULT_SHELBY_APTOS_FULLNODE_URL,
+        ),
       );
+      const uidByObjectName = new Map(
+        ShelbyBlobClient.registeredBlobUids(
+          confirmedShelbyRegistration.events ?? [],
+          AccountAddress.from(SHELBY_DEPLOYER),
+        ).map((registered) => [registered.objectName, registered.uid]),
+      );
+      const assetUid = uidByObjectName.get(
+        createBlobKey({ account: publishIntent.storageAccount, blobName: publishIntent.assetBlobName }),
+      );
+      const manifestUid = uidByObjectName.get(
+        createBlobKey({ account: publishIntent.storageAccount, blobName: publishIntent.manifestBlobName }),
+      );
+
+      if (assetUid === undefined || manifestUid === undefined) {
+        throw new Error("Shelby did not return both registered blob identifiers.");
+      }
       const assetUpload = await createPrimeGateEncryptedStream(
         file.stream(),
         file.size,
@@ -433,22 +437,53 @@ export function useShelbyPublish() {
         contentKey,
         { nonce: manifestNonce },
       );
-      await withPrimeGatePublishStage("Shelby blob upload", () =>
+      const [assetUploadResult, manifestUploadResult] = await withPrimeGatePublishStage("Shelby blob upload", () =>
         Promise.all([
-          shelbyClient.rpc.putBlob({
-            account: account.address,
+          shelbyClient.rpc.putBlobChunksets({
+            accountAddress: publishIntent.storageAccount,
             blobData: assetUpload.stream,
-            blobName: publishIntent.assetBlobName,
+            commitments: assetCommitments,
             totalBytes: assetUpload.ciphertextSize,
+            uid: assetUid,
           }),
-          shelbyClient.rpc.putBlob({
-            account: account.address,
+          shelbyClient.rpc.putBlobChunksets({
+            accountAddress: publishIntent.storageAccount,
             blobData: manifestUpload.stream,
-            blobName: publishIntent.manifestBlobName,
+            commitments: manifestCommitments,
             totalBytes: manifestUpload.ciphertextSize,
+            uid: manifestUid,
           }),
         ]),
       );
+      const minimumAcks = requiredAckCount(provider.config.erasure_n);
+      if (assetUploadResult.spAcks.length < minimumAcks || manifestUploadResult.spAcks.length < minimumAcks) {
+        throw new Error("Shelby did not return enough storage provider acknowledgements.");
+      }
+
+      for (const commit of [
+        { blobName: publishIntent.assetBlobName, spAcks: assetUploadResult.spAcks, uid: assetUid },
+        { blobName: publishIntent.manifestBlobName, spAcks: manifestUploadResult.spAcks, uid: manifestUid },
+      ]) {
+        const pendingCommit = await withPrimeGatePublishStage("Shelby storage confirmation", () =>
+          submitPrimeGateShelbySponsorTransaction({
+            attestationToken: publishIntent.attestationToken,
+            blobName: commit.blobName,
+            operation: "shelby-commit-v2",
+            storageProviderAcks: commit.spAcks.map((ack) => ({
+              signature: `0x${Array.from(ack.signature, (byte) => byte.toString(16).padStart(2, "0")).join("")}`,
+              slot: ack.slot,
+            })),
+            uid: commit.uid.toString(),
+            walletAddress: address,
+          }),
+        );
+        await withPrimeGatePublishStage("Shelby storage confirmation", () =>
+          waitForPrimeGateTransactionAt(
+            pendingCommit.hash,
+            PRIMEGATE_DEFAULT_SHELBY_APTOS_FULLNODE_URL,
+          ),
+        );
+      }
 
       const finalizedAsset = await withPrimeGatePublishStage("PrimeGate finalization", () =>
         finalizePublishedAsset({

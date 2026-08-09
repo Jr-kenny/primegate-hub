@@ -10,6 +10,7 @@ export type PrimeGatePublishErrorStage =
   | "sponsor submission"
   | "Shelby registration confirmation"
   | "Shelby blob upload"
+  | "Shelby storage confirmation"
   | "PrimeGate finalization"
   | "paid listing";
 

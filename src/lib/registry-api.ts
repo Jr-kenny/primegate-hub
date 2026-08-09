@@ -82,6 +82,7 @@ type PublishIntentResponse = {
   id: string;
   manifestBlobName: string;
   ownerAddress: string;
+  storageAccount: string;
   billing: PrimeGatePublisherBillingSummary;
 };
 
@@ -95,9 +96,26 @@ export type PrimeGateShelbySponsorConfig = {
 type PrimeGateShelbySponsorSubmission =
   | {
       attestationToken: string;
-      operation: "shelby-registration";
-      senderAuthenticatorHex: string;
-      transactionHex: string;
+      blobName: string;
+      operation: "shelby-commit-v2";
+      storageProviderAcks: Array<{
+        signature: string;
+        slot: number;
+      }>;
+      uid: string;
+      walletAddress: string;
+    }
+  | {
+      attestationToken: string;
+      blobs: Array<{
+        blobMerkleRoot: string;
+        blobName: string;
+        blobSize: number;
+        numChunksets: number;
+      }>;
+      encoding: number;
+      expirationMicros: number;
+      operation: "shelby-registration-v2";
       walletAddress: string;
     }
   | {
@@ -408,8 +426,9 @@ export function submitPrimeGateShelbySponsorTransaction(payload: PrimeGateShelby
   }, {
     hasAttestationToken: "attestationToken" in payload && Boolean(payload.attestationToken),
     operation: payload.operation,
-    senderAuthenticatorLength: payload.senderAuthenticatorHex.length,
-    transactionLength: payload.transactionHex.length,
+    senderAuthenticatorLength:
+      "senderAuthenticatorHex" in payload ? payload.senderAuthenticatorHex.length : 0,
+    transactionLength: "transactionHex" in payload ? payload.transactionHex.length : 0,
     walletAddress: payload.walletAddress,
   });
 }
