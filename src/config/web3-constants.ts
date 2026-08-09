@@ -4,7 +4,10 @@ import {
   PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL,
 } from "@/config/primegate-network";
 
-export { PRIMEGATE_APTOS_NETWORK } from "@/config/primegate-network";
+export {
+  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_APTOS_WALLET_NETWORK_INFO,
+} from "@/config/primegate-network";
 
 export const PRIMEGATE_APP_NAME = "PrimeGate";
 export const PRIMEGATE_WALLET_NAME = readPrimeGateEnvValue(import.meta.env.VITE_APTOS_WALLET_NAME) || "Petra";

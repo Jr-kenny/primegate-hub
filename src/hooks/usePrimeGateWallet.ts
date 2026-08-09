@@ -13,7 +13,10 @@ import { groupAndSortWallets, useWallet } from "@aptos-labs/wallet-adapter-react
 import { serializeSignInOutput } from "@aptos-labs/siwa";
 import type { NetworkInfo } from "@aptos-labs/wallet-adapter-react";
 
-import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
+import {
+  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_APTOS_WALLET_NETWORK_INFO,
+} from "@/config/web3-constants";
 import { toast } from "@/hooks/use-toast";
 import {
   getLastPrimeGateAuthDebug,
@@ -199,6 +202,25 @@ function hasWalletNetworkFeature(
       typeof feature === "object" &&
       "network" in feature &&
       typeof (feature as { network?: unknown }).network === "function",
+  );
+}
+
+type WalletChangeNetworkFeature = {
+  changeNetwork: (networkInfo: NetworkInfo) => Promise<{
+    args?: { reason?: string; success?: boolean };
+    status: string;
+  }>;
+};
+
+function hasWalletChangeNetworkFeature(
+  wallet: { features?: Record<string, unknown> } | null | undefined,
+): wallet is { features: Record<"aptos:changeNetwork", WalletChangeNetworkFeature> } {
+  const feature = wallet?.features?.["aptos:changeNetwork"];
+  return Boolean(
+    feature &&
+      typeof feature === "object" &&
+      "changeNetwork" in feature &&
+      typeof (feature as { changeNetwork?: unknown }).changeNetwork === "function",
   );
 }
 
@@ -437,7 +459,22 @@ function usePrimeGateWalletState() {
       }
 
       setIsSwitchingNetwork(true);
-      await wallet.changeNetwork(PRIMEGATE_APTOS_NETWORK);
+      const connectedWallet = wallet.wallet;
+      if (!hasWalletChangeNetworkFeature(connectedWallet)) {
+        throw new Error("The connected wallet does not support custom Aptos network switching.");
+      }
+
+      const response = await connectedWallet.features["aptos:changeNetwork"].changeNetwork(
+        PRIMEGATE_APTOS_WALLET_NETWORK_INFO,
+      );
+      if (response.status !== "Approved") {
+        throw new Error("The wallet rejected the Shelbynet network switch.");
+      }
+
+      if (response.args?.success === false) {
+        throw new Error(response.args.reason || "The wallet could not switch to Shelbynet.");
+      }
+
       toast({
         title: "Network updated",
         description: `Wallet switched to ${PRIMEGATE_APTOS_NETWORK}.`,
