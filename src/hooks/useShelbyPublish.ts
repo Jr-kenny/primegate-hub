@@ -12,11 +12,13 @@ import { PRIMEGATE_REGISTRY_CONTRACT_ADDRESS } from "@/config/primegate-registry
 import {
   PRIMEGATE_DEFAULT_BLOB_TTL_MICROS,
   PRIMEGATE_SHELBY_API_KEY,
+  PRIMEGATE_SHELBY_BASE_URL,
 } from "@/config/web3-constants";
 import { shelbyClient } from "@/config/web3";
 import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
 import { getPrimeGateTransactionOptions, waitForPrimeGateTransaction } from "@/lib/aptos-client";
 import { normalizeAptAmount, parseAptAmountToOctas } from "@/lib/aptos-amount";
+import { assertPrimeGateShelbyRpcReachable } from "@/lib/primegate-shelby-rpc";
 import {
   withPrimeGatePublishStage,
   getPrimeGatePublishErrorMessage,
@@ -245,6 +247,10 @@ export function useShelbyPublish() {
     setIsPublishingAsset(true);
 
     try {
+      await withPrimeGatePublishStage("Shelby RPC preflight", () =>
+        assertPrimeGateShelbyRpcReachable(PRIMEGATE_SHELBY_BASE_URL, PRIMEGATE_SHELBY_API_KEY),
+      );
+
       const mimeType = file.type || "application/octet-stream";
       const normalizedPackageSlug = normalizePrimeGatePackageSlug(packageSlug);
       const normalizedPriceApt = normalizeAptAmount(priceApt);
