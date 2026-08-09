@@ -22,6 +22,7 @@ import {
 } from "../../src/lib/primegate-registry-contract.js";
 import {
   PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL,
   PRIMEGATE_APTOS_NETWORK_NAME,
   PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
 } from "../../src/config/primegate-network.js";
@@ -32,6 +33,15 @@ const PRIMEGATE_SPONSOR_MAX_GAS_AMOUNT = 100_000n;
 const PRIMEGATE_SPONSOR_ALLOWED_FUNCTION = "register_multiple_blobs_with_sponsor";
 const PRIMEGATE_SPONSOR_DEFAULT_MIN_APT_OCTAS = 5_000_000n;
 const MAX_U64 = 18_446_744_073_709_551_615n;
+
+function createPrimeGateShelbyAptosClient() {
+  return new Aptos(
+    new AptosConfig({
+      network: PRIMEGATE_APTOS_NETWORK,
+      fullnode: PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL,
+    }),
+  );
+}
 
 export type SponsoredShelbyTransactionInput = {
   operation: "shelby-registration";
@@ -406,11 +416,7 @@ export type SponsorFundingStatus = {
 
 export async function getSponsorFundingStatus(): Promise<SponsorFundingStatus> {
   const sponsorAddress = getSponsorAccountAddress();
-  const aptos = new Aptos(
-    new AptosConfig({
-      network: PRIMEGATE_APTOS_NETWORK,
-    }),
-  );
+  const aptos = createPrimeGateShelbyAptosClient();
   const [aptosBalance, shelbyUsdBalance] = await Promise.all([
     aptos.getBalance({
       accountAddress: sponsorAddress,
@@ -492,11 +498,7 @@ export async function submitSponsoredShelbyTransaction(
 ): Promise<PendingTransactionResponse> {
   const validated = validateSponsoredShelbyTransaction(input);
   await assertSponsorFunding();
-  const aptos = new Aptos(
-    new AptosConfig({
-      network: PRIMEGATE_APTOS_NETWORK,
-    }),
-  );
+  const aptos = createPrimeGateShelbyAptosClient();
   const sponsorAuthenticator = validated.sponsorAccount.signTransactionWithAuthenticator(validated.transaction);
 
   return aptos.transaction.submit.multiAgent({
@@ -517,11 +519,7 @@ export async function submitSponsoredPrimeGateListingTransaction(
 ): Promise<PendingTransactionResponse> {
   const validated = validatePrimeGateListingTransaction(input, parseSponsorAccount());
   await assertSponsorFunding();
-  const aptos = new Aptos(
-    new AptosConfig({
-      network: PRIMEGATE_APTOS_NETWORK,
-    }),
-  );
+  const aptos = createPrimeGateShelbyAptosClient();
   const sponsorAuthenticator = validated.sponsorAccount.signTransactionWithAuthenticator(validated.transaction);
 
   return aptos.transaction.submit.simple({
