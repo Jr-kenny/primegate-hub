@@ -111,6 +111,15 @@ function assertSponsorServiceAvailable(sponsorConfig: PrimeGateShelbySponsorConf
   }
 }
 
+function assertSponsorAccountIsDistinctFromPublisher(
+  publisherAddress: string | AccountAddress,
+  sponsorAddress: AccountAddress,
+) {
+  if (AccountAddress.from(publisherAddress).equals(sponsorAddress)) {
+    throw new Error("The PrimeGate sponsor account must be different from the publishing wallet.");
+  }
+}
+
 export type PublishedAssetResult = {
   assetBlobName: string;
   assetSha256: string | null;
@@ -180,6 +189,7 @@ export function useShelbyPublish() {
 
     const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
     const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
+    assertSponsorAccountIsDistinctFromPublisher(account.address, sponsorAddress);
     const sponsoredTransaction = await withPrimeGatePublishStage(
       "Shelby transaction preparation",
       () =>
@@ -366,6 +376,7 @@ export function useShelbyPublish() {
 
       const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
       const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
+      assertSponsorAccountIsDistinctFromPublisher(account.address, sponsorAddress);
       const sponsoredTransaction = await withPrimeGatePublishStage(
         "Shelby transaction preparation",
         () =>

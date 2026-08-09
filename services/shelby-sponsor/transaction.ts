@@ -239,6 +239,13 @@ function assertCommonTransactionFields(
     throw new SponsorTransactionError("The transaction sender does not match the authenticated wallet.", 401);
   }
 
+  if (transaction.rawTransaction.sender.equals(sponsorAccount.accountAddress)) {
+    throw new SponsorTransactionError(
+      "The PrimeGate sponsor account must be different from the publishing wallet.",
+      400,
+    );
+  }
+
   if (transaction.rawTransaction.chain_id.chainId !== 2) {
     throw new SponsorTransactionError("The sponsor service only accepts Aptos testnet transactions.", 400);
   }

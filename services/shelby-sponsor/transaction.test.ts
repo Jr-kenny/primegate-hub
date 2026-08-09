@@ -163,6 +163,27 @@ describe("PrimeGate Shelby sponsor transaction validation", () => {
     ).toThrow("active PrimeGate publish intent");
   });
 
+  it("rejects a publisher wallet reused as the sponsor account", async () => {
+    const { expectedBlobNames, sender, transaction } = await buildSponsoredTransaction();
+    const sameAccountTransaction = new MultiAgentTransaction(
+      transaction.rawTransaction,
+      [sender.accountAddress],
+      sender.accountAddress,
+    );
+    process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY = sender.privateKey.toString();
+    process.env.PRIMEGATE_SHELBY_SPONSOR_ADDRESS = sender.accountAddress.toString();
+
+    expect(() =>
+      validateSponsoredShelbyTransaction({
+        expectedBlobNames,
+        operation: "shelby-registration",
+        senderAuthenticatorHex: sender.signTransactionWithAuthenticator(sameAccountTransaction).bcsToHex().toString(),
+        transactionHex: sameAccountTransaction.bcsToHex().toString(),
+        walletAddress: sender.accountAddress.toString(),
+      }),
+    ).toThrow("different from the publishing wallet");
+  });
+
   it("accepts a publisher-signed paid listing for the configured registry", () => {
     const { packageId, priceOctas, sender, sponsor, transaction } = buildSponsoredListingTransaction();
     process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY = sponsor.privateKey.toString();
