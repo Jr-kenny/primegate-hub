@@ -4,6 +4,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import {
   SponsorConfigurationError,
   SponsorTransactionError,
+  getSponsorAccountAddress,
+  getSponsorFundingStatus,
   submitSponsoredPrimeGateListingTransaction,
   submitSponsoredShelbyTransaction,
   type SponsoredTransactionInput,
@@ -26,11 +28,51 @@ function writeJson(response: ServerResponse, status: number, body: unknown) {
   response.end(payload);
 }
 
-function writeHealthResponse(response: ServerResponse, includeBody: boolean) {
-  const payload = JSON.stringify({
-    sponsorConfigured: Boolean(process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY?.trim()),
-    status: "ok",
-  });
+export function getSponsorHealthStatus() {
+  let sponsorConfigured = false;
+
+  try {
+    sponsorConfigured = Boolean(
+      getServiceToken() &&
+        process.env.PRIMEGATE_SHELBY_SPONSOR_ADDRESS?.trim() &&
+        getSponsorAccountAddress(),
+    );
+  } catch {
+    sponsorConfigured = false;
+  }
+
+  return {
+    sponsorConfigured,
+    status: "ok" as const,
+  };
+}
+
+export async function getSponsorReadinessStatus() {
+  const health = getSponsorHealthStatus();
+
+  if (!health.sponsorConfigured) {
+    return {
+      ...health,
+      fundingReady: false,
+    };
+  }
+
+  try {
+    const funding = await getSponsorFundingStatus();
+    return {
+      ...health,
+      fundingReady: funding.aptosReady && funding.shelbyUsdReady,
+    };
+  } catch {
+    return {
+      ...health,
+      fundingReady: false,
+    };
+  }
+}
+
+async function writeHealthResponse(response: ServerResponse, includeBody: boolean) {
+  const payload = JSON.stringify(await getSponsorReadinessStatus());
 
   response.statusCode = 200;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -136,17 +178,53 @@ function parseRequestBody(rawBody: string): SponsoredTransactionInput {
   throw new SponsorTransactionError("The sponsor operation is not supported.", 400);
 }
 
+function isAptosApiError(error: unknown): error is {
+  data?: { error_code?: unknown; message?: unknown; vm_error_code?: unknown };
+  message?: string;
+  name?: string;
+} {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const value = error as { data?: unknown; name?: unknown };
+  return value.name === "AptosApiError" || Boolean(value.data && typeof value.data === "object");
+}
+
 function getErrorStatus(error: unknown) {
   if (error instanceof SponsorTransactionError || error instanceof SponsorConfigurationError) {
     return error.status;
   }
 
+  if (isAptosApiError(error)) {
+    return 502;
+  }
+
   return 500;
 }
 
-function getPublicErrorMessage(error: unknown) {
+export function getPublicErrorMessage(error: unknown) {
   if (error instanceof SponsorTransactionError || error instanceof SponsorConfigurationError) {
     return error.message;
+  }
+
+  if (isAptosApiError(error)) {
+    const code =
+      typeof error.data?.vm_error_code === "string"
+        ? error.data.vm_error_code
+        : typeof error.data?.error_code === "string"
+          ? error.data.error_code
+          : null;
+    const message =
+      typeof error.data?.message === "string" && error.data.message.trim()
+        ? error.data.message.trim()
+        : typeof error.message === "string" && error.message.trim()
+          ? error.message.trim()
+          : "The Aptos fullnode rejected the transaction.";
+
+    return code
+      ? `Aptos rejected the sponsored transaction (${code}): ${message}`
+      : `Aptos rejected the sponsored transaction: ${message}`;
   }
 
   return "The PrimeGate sponsor service could not submit the transaction.";
@@ -154,7 +232,7 @@ function getPublicErrorMessage(error: unknown) {
 
 export async function handleSponsorRequest(request: IncomingMessage, response: ServerResponse) {
   if ((request.method === "GET" || request.method === "HEAD") && request.url === "/health") {
-    writeHealthResponse(response, request.method === "GET");
+    await writeHealthResponse(response, request.method === "GET");
     return;
   }
 

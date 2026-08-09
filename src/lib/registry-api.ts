@@ -87,7 +87,9 @@ type PublishIntentResponse = {
 
 export type PrimeGateShelbySponsorConfig = {
   enabled: boolean;
+  serviceHealthy: boolean;
   sponsorAddress: string | null;
+  status: "active" | "unavailable" | "not-configured";
 };
 
 type PrimeGateShelbySponsorSubmission =

@@ -227,27 +227,6 @@ export default function Publish() {
         <p className="text-sm text-muted-foreground">
           Publish packages, prompts, datasets, images, archives, text files, and agent-ready assets to the registry.
         </p>
-        <p className="text-xs text-muted-foreground">
-          For folders, starter kits, or Git repositories, bundle the contents as a `.zip` before uploading.
-        </p>
-      </div>
-
-      <div className="pg-fade-up rounded-lg border bg-card p-5 space-y-4">
-        <h2 className="text-sm font-semibold">Quick Start</h2>
-        <div className="space-y-3">
-          <div className="rounded-md bg-secondary p-3 font-mono text-sm">
-            <span className="text-muted-foreground">$</span> primegate auth login
-          </div>
-          <div className="rounded-md bg-secondary p-3 font-mono text-sm">
-            <span className="text-muted-foreground">$</span> primegate init
-          </div>
-          <div className="rounded-md bg-secondary p-3 font-mono text-sm">
-            <span className="text-muted-foreground">$</span> primegate publish
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Connect your wallet to publish, receive paid sales, and manage release history.
-        </p>
       </div>
 
       <div className="pg-fade-up rounded-lg border bg-card p-5 space-y-4">
@@ -259,9 +238,6 @@ export default function Publish() {
               : isReconnectingWallet
                 ? "Reconnecting your previously connected wallet..."
                 : "Connect an Aptos wallet to publish through Shelby."}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Shelby uploads require Aptos Testnet and ShelbyUSD in the connected wallet.
           </p>
         </div>
 
@@ -350,9 +326,6 @@ export default function Publish() {
                 }}
                 placeholder="primegate-ocr-dataset"
               />
-              <p className="text-xs text-muted-foreground">
-                Reuse this slug for later updates to the same package family.
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -363,9 +336,6 @@ export default function Publish() {
                 onChange={(event) => setReleaseVersion(event.target.value)}
                 placeholder="1.0.0"
               />
-              <p className="text-xs text-muted-foreground">
-                Reusing the slug with a new version creates a new release.
-              </p>
             </div>
           </div>
 
@@ -485,10 +455,6 @@ export default function Publish() {
                 type="file"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
-              <p className="text-xs text-muted-foreground">
-                TXT, images, ZIPs, datasets, prompt files, and other package files are all valid. Use ZIP for folders,
-                repos, or multi-file bundles.
-              </p>
             </div>
           </div>
 

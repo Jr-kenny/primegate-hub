@@ -17,6 +17,14 @@ type SponsorSubmitBody = {
   operation?: unknown;
 };
 
+type SponsorServiceHealth = {
+  fundingReady?: unknown;
+  sponsorConfigured?: unknown;
+  status?: unknown;
+};
+
+type SponsorAvailability = "active" | "unavailable" | "not-configured";
+
 function getSponsorServiceUrl() {
   return readPrimeGateEnvValue(process.env.PRIMEGATE_SPONSOR_SERVICE_URL).replace(/\/$/, "");
 }
@@ -47,6 +55,25 @@ function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+async function isSponsorServiceHealthy(serviceUrl: string) {
+  try {
+    const response = await fetch(`${serviceUrl}/health`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5_000),
+    });
+    const payload = (await response.json().catch(() => null)) as SponsorServiceHealth | null;
+
+    return (
+      response.ok &&
+      payload?.status === "ok" &&
+      payload.sponsorConfigured === true &&
+      payload.fundingReady === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 function assertHexSize(value: string, field: string, maxLength: number) {
   if (!/^0x[0-9a-f]+$/i.test(value) || (value.length - 2) % 2 !== 0) {
     throw new AuthError(`${field} must be a valid hexadecimal value.`, 400);
@@ -61,13 +88,23 @@ async function getSponsorConfig(request: Request) {
   requireAuthenticatedWallet(request);
 
   const sponsorAddress = getConfiguredSponsorAddress();
-  const configured = Boolean(sponsorAddress && getSponsorServiceUrl() && getSponsorServiceToken());
+  const serviceUrl = getSponsorServiceUrl();
+  const serviceToken = getSponsorServiceToken();
+  const configured = Boolean(sponsorAddress && serviceUrl && serviceToken);
+  const healthy = configured && (await isSponsorServiceHealthy(serviceUrl));
+  const status: SponsorAvailability = !configured
+    ? "not-configured"
+    : healthy
+      ? "active"
+      : "unavailable";
 
   return jsonResponse(
     {
       data: {
-        enabled: configured,
-        sponsorAddress: configured ? sponsorAddress : null,
+        enabled: healthy,
+        serviceHealthy: healthy,
+        sponsorAddress: healthy ? sponsorAddress : null,
+        status,
       },
     },
     undefined,
