@@ -69,11 +69,9 @@ export default function Publish() {
     isConnected,
     isReconnectingWallet,
     isRefreshingNetwork,
-    isSwitchingNetwork,
+    refreshPrimeGateNetwork,
     isWrongNetwork,
-    requiredNetworkName,
     shortAddress,
-    switchToPrimeGateNetwork,
   } = usePrimeGateWallet();
   const { publishedAssets, publisherBilling } = usePrimeGateRegistry();
   const { error, isPublishing, publishAsset } = useShelbyPublish();
@@ -288,17 +286,15 @@ export default function Publish() {
         {isConnected && isWrongNetwork && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
             <p className="text-sm font-medium text-destructive">Wrong network</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Switch your wallet to {requiredNetworkName} before publishing to Shelby.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">The connected wallet network does not match PrimeGate.</p>
             <Button
               type="button"
               variant="outline"
               className="mt-3"
-              onClick={() => void switchToPrimeGateNetwork()}
-              loading={isSwitchingNetwork}
+              onClick={() => void refreshPrimeGateNetwork()}
+              loading={isRefreshingNetwork}
             >
-              {isSwitchingNetwork ? "Switching network..." : `Switch to ${requiredNetworkName}`}
+              {isRefreshingNetwork ? "Refreshing network..." : "Refresh wallet network"}
             </Button>
           </div>
         )}

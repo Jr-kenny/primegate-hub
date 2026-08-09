@@ -18,15 +18,13 @@ export default function WalletPage() {
     isLoading,
     isRefreshingNetwork,
     isReconnectingWallet,
-    isSwitchingNetwork,
     isVerifyingSession,
     isWrongNetwork,
     networkName,
-    requiredNetworkName,
     session,
     shortAddress,
     supportsSiwa,
-    switchToPrimeGateNetwork,
+    refreshPrimeGateNetwork,
   } = usePrimeGateWallet();
 
   const sessionExpiresAt = session ? new Date(session.expiresAt).toLocaleString() : null;
@@ -59,10 +57,10 @@ export default function WalletPage() {
                 size="sm"
                 variant="outline"
                 className="mt-2"
-                onClick={() => void switchToPrimeGateNetwork()}
-                loading={isSwitchingNetwork}
+                onClick={() => void refreshPrimeGateNetwork()}
+                loading={isRefreshingNetwork}
               >
-                {isSwitchingNetwork ? "Switching network..." : `Switch to ${requiredNetworkName}`}
+                {isRefreshingNetwork ? "Refreshing network..." : "Refresh wallet network"}
               </Button>
             )}
           </div>

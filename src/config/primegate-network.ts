@@ -11,10 +11,3 @@ export const PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL =
   "https://api.shelbynet.shelby.xyz/shelby";
 export const PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL =
   "https://api.shelbynet.shelby.xyz/v1";
-
-// Nightly expects a complete custom-network descriptor for Shelbynet.
-export const PRIMEGATE_APTOS_WALLET_NETWORK_INFO = {
-  name: Network.CUSTOM,
-  chainId: PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
-  url: PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL,
-} as const;

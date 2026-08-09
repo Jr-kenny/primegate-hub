@@ -13,10 +13,7 @@ import { groupAndSortWallets, useWallet } from "@aptos-labs/wallet-adapter-react
 import { serializeSignInOutput } from "@aptos-labs/siwa";
 import type { NetworkInfo } from "@aptos-labs/wallet-adapter-react";
 
-import {
-  PRIMEGATE_APTOS_NETWORK,
-  PRIMEGATE_APTOS_WALLET_NETWORK_INFO,
-} from "@/config/web3-constants";
+import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
 import { toast } from "@/hooks/use-toast";
 import {
   getLastPrimeGateAuthDebug,
@@ -205,28 +202,8 @@ function hasWalletNetworkFeature(
   );
 }
 
-type WalletChangeNetworkFeature = {
-  changeNetwork: (networkInfo: NetworkInfo) => Promise<{
-    args?: { reason?: string; success?: boolean };
-    status: string;
-  }>;
-};
-
-function hasWalletChangeNetworkFeature(
-  wallet: { features?: Record<string, unknown> } | null | undefined,
-): wallet is { features: Record<"aptos:changeNetwork", WalletChangeNetworkFeature> } {
-  const feature = wallet?.features?.["aptos:changeNetwork"];
-  return Boolean(
-    feature &&
-      typeof feature === "object" &&
-      "changeNetwork" in feature &&
-      typeof (feature as { changeNetwork?: unknown }).changeNetwork === "function",
-  );
-}
-
 function usePrimeGateWalletState() {
   const wallet = useWallet();
-  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
   const [isVerifyingSession, setIsVerifyingSession] = useState(false);
   const [lastSessionDebug, setLastSessionDebug] = useState<PrimeGateAuthDebugState | null>(null);
   const [lastSessionError, setLastSessionError] = useState<string | null>(null);
@@ -448,49 +425,41 @@ function usePrimeGateWalletState() {
     }
   }
 
-  const switchToPrimeGateNetwork = async () => {
+  const refreshPrimeGateNetwork = async () => {
     try {
-      if (networkName === PRIMEGATE_APTOS_NETWORK) {
-        toast({
-          title: "Already on Shelbynet",
-          description: `Your wallet is already connected to ${PRIMEGATE_APTOS_NETWORK}.`,
-        });
+      if (!wallet.connected) {
+        throw new Error("Connect your wallet before refreshing its network.");
+      }
+
+      setIsRefreshingNetwork(true);
+      const connectedWallet = wallet.wallet;
+      if (!hasWalletNetworkFeature(connectedWallet)) {
+        setResolvedNetworkInfo(wallet.network);
         return;
       }
 
-      setIsSwitchingNetwork(true);
-      const connectedWallet = wallet.wallet;
-      if (!hasWalletChangeNetworkFeature(connectedWallet)) {
-        throw new Error("The connected wallet does not support custom Aptos network switching.");
-      }
-
-      const response = await connectedWallet.features["aptos:changeNetwork"].changeNetwork(
-        PRIMEGATE_APTOS_WALLET_NETWORK_INFO,
-      );
-      if (response.status !== "Approved") {
-        throw new Error("The wallet rejected the Shelbynet network switch.");
-      }
-
-      if (response.args?.success === false) {
-        throw new Error(response.args.reason || "The wallet could not switch to Shelbynet.");
-      }
+      const networkInfo = await connectedWallet.features["aptos:network"].network();
+      setResolvedNetworkInfo(networkInfo);
 
       toast({
-        title: "Network updated",
-        description: `Wallet switched to ${PRIMEGATE_APTOS_NETWORK}.`,
+        title: "Wallet network refreshed",
+        description:
+          extractNamedWalletNetwork(networkInfo) === PRIMEGATE_APTOS_NETWORK
+            ? `Wallet is connected to ${PRIMEGATE_APTOS_NETWORK}.`
+            : "The wallet is still connected to a different network.",
       });
     } catch (error) {
       toast({
-        title: "Network switch failed",
+        title: "Network refresh failed",
         description:
           error instanceof Error
             ? error.message
-            : "The wallet could not switch networks automatically.",
+            : "The wallet network could not be read.",
         variant: "destructive",
       });
       throw error;
     } finally {
-      setIsSwitchingNetwork(false);
+      setIsRefreshingNetwork(false);
     }
   };
 
@@ -665,7 +634,6 @@ function usePrimeGateWalletState() {
     isConnected: wallet.connected,
     isReconnectingWallet,
     isRefreshingNetwork,
-    isSwitchingNetwork,
     supportsSiwa,
     isVerifyingSession,
     isWrongNetwork,
@@ -676,7 +644,7 @@ function usePrimeGateWalletState() {
     requiredNetworkName: PRIMEGATE_APTOS_NETWORK,
     session,
     shortAddress: address ? shortenAddress(address) : null,
-    switchToPrimeGateNetwork,
+    refreshPrimeGateNetwork,
   };
 }
 
