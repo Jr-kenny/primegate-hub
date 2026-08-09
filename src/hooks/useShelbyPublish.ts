@@ -4,7 +4,6 @@ import {
   createDefaultErasureCodingProvider,
   expectedTotalChunksets,
   generateCommitments,
-  ShelbyBlobClient,
 } from "@shelby-protocol/sdk/browser";
 import { AccountAddress, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 
@@ -20,6 +19,7 @@ import { usePrimeGateWallet } from "@/hooks/usePrimeGateWallet";
 import { getPrimeGateTransactionOptions, waitForPrimeGateTransaction } from "@/lib/aptos-client";
 import { normalizeAptAmount, parseAptAmountToOctas } from "@/lib/aptos-amount";
 import { assertPrimeGateShelbyRpcReachable } from "@/lib/primegate-shelby-rpc";
+import { createPrimeGateBatchRegisterBlobsPayload } from "@/lib/primegate-shelby-payload";
 import {
   withPrimeGatePublishStage,
   getPrimeGatePublishErrorMessage,
@@ -386,10 +386,7 @@ export function useShelbyPublish() {
         "Shelby transaction preparation",
         () =>
           aptos.transaction.build.multiAgent({
-            data: ShelbyBlobClient.createBatchRegisterBlobsPayload({
-              ...blobRegistration,
-              useSponsoredUsdVariant: true,
-            }),
+            data: createPrimeGateBatchRegisterBlobsPayload(blobRegistration),
             options: shelbyBuildOptions,
             secondarySignerAddresses: [sponsorAddress],
             sender: AccountAddress.from(account.address),
