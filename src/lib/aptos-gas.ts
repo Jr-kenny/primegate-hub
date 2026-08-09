@@ -1,4 +1,5 @@
 import { readPrimeGateEnvValue } from "./primegate-env";
+import { PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL } from "../config/primegate-network";
 
 type PrimeGateGasEstimate = {
   gas_estimate?: number | string;
@@ -10,11 +11,10 @@ export type PrimeGateTransactionOptions = {
   maxGasAmount: number;
 };
 
-const DEFAULT_APTOS_FULLNODE_URL = "https://api.testnet.aptoslabs.com/v1";
 const FALLBACK_GAS_UNIT_PRICE = 100;
 
 function getAptosFullnodeUrl() {
-  return readPrimeGateEnvValue(process.env.VITE_APTOS_FULLNODE_URL) || DEFAULT_APTOS_FULLNODE_URL;
+  return readPrimeGateEnvValue(process.env.VITE_APTOS_FULLNODE_URL) || PRIMEGATE_DEFAULT_APTOS_FULLNODE_URL;
 }
 
 function toPositiveInteger(value: unknown) {

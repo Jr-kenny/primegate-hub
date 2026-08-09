@@ -12,6 +12,7 @@ import {
 } from "@aptos-labs/ts-sdk";
 import { SHELBY_DEPLOYER } from "@shelby-protocol/sdk/node";
 
+import { PRIMEGATE_APTOS_NUMERIC_CHAIN_ID } from "../../src/config/primegate-network.js";
 import { PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS } from "../../src/lib/primegate-registry-contract.js";
 import {
   validateSponsoredPrimeGateListingTransaction,
@@ -64,7 +65,7 @@ function buildSponsoredTransaction() {
     50_000n,
     100n,
     BigInt(Math.floor(Date.now() / 1000) + 600),
-    new ChainId(2),
+    new ChainId(PRIMEGATE_APTOS_NUMERIC_CHAIN_ID),
   );
 
   return {
@@ -97,7 +98,7 @@ function buildSponsoredListingTransaction() {
     10_000n,
     100n,
     BigInt(Math.floor(Date.now() / 1000) + 600),
-    new ChainId(2),
+    new ChainId(PRIMEGATE_APTOS_NUMERIC_CHAIN_ID),
   );
 
   return {

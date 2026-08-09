@@ -72,7 +72,7 @@ const GENERATED_ASSETS = [
   {
     fileName: "primegate-pricing-playbook.md",
     title: "PrimeGate Pricing Ladder Playbook",
-    description: "Pricing ladder and upgrade rules for PrimeGate testnet releases.",
+    description: "Pricing ladder and upgrade rules for PrimeGate Shelbynet releases.",
     priceApt: "1.25",
     content: `# PrimeGate Pricing Playbook
 

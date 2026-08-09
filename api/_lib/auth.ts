@@ -15,8 +15,6 @@ import {
   type Signature,
   deserializePublicKey,
   deserializeSignature,
-  Network,
-  NetworkToChainId,
 } from "@aptos-labs/ts-sdk";
 import {
   deserializeSignInOutput,
@@ -27,6 +25,11 @@ import {
 } from "@aptos-labs/siwa";
 
 import { getSql } from "./database.js";
+import {
+  PRIMEGATE_APTOS_CHAIN_ID,
+  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+} from "../../src/config/primegate-network.js";
 import { readPrimeGateEnvValue } from "../../src/lib/primegate-env.js";
 
 const PRIMEGATE_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
@@ -35,9 +38,6 @@ const PRIMEGATE_SIGN_IN_COOKIE = "primegate-siwa-input";
 const PRIMEGATE_SIGN_MESSAGE_COOKIE = "primegate-sign-message-input";
 const PRIMEGATE_SESSION_COOKIE = "primegate-session";
 const PRIMEGATE_SIGN_IN_STATEMENT = "Sign in to PrimeGate.";
-const PRIMEGATE_APTOS_NETWORK = Network.TESTNET;
-const PRIMEGATE_APTOS_CHAIN_ID = "aptos:testnet";
-const PRIMEGATE_APTOS_NUMERIC_CHAIN_ID = NetworkToChainId[PRIMEGATE_APTOS_NETWORK];
 const SIWA_VERSION = "1";
 
 const aptos = new Aptos(

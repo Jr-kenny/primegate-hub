@@ -48,7 +48,7 @@ export type RegistryPackagePayment = {
   amountApt: string;
   amountOctas: string;
   currency: "APT";
-  network: "testnet";
+  network: "shelbynet";
   recipientAddress: string;
 };
 

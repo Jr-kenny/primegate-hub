@@ -24,6 +24,7 @@ import {
 import { recordPublisherEgress } from "./publisher-billing.js";
 import { toAbsoluteUrl } from "./request.js";
 import type { PrimeGateContentEncryptionManifest } from "../../src/lib/primegate-content-encryption.js";
+import { PRIMEGATE_APTOS_NETWORK_NAME } from "../../src/config/primegate-network.js";
 
 function buildResolvePath(packageId: string) {
   return `/api/packages/${encodeURIComponent(packageId)}/resolve`;
@@ -128,7 +129,7 @@ async function getPublishedAssetPayment(packageId: string, ownerAddress: string,
     amountApt: purchaseTargetAmountApt(amountOctas),
     amountOctas,
     currency: "APT" as const,
-    network: "testnet" as const,
+    network: PRIMEGATE_APTOS_NETWORK_NAME,
     recipientAddress: listing.sellerAddress,
   };
 }
@@ -194,7 +195,7 @@ export async function getPackageResolution(
               amountApt: directPayment.amountApt,
               amountOctas: directPayment.amountOctas,
               currency: "APT" as const,
-              network: "testnet" as const,
+              network: PRIMEGATE_APTOS_NETWORK_NAME,
               recipientAddress: directPayment.recipientAddress,
             }
           : null;

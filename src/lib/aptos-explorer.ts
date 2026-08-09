@@ -7,5 +7,5 @@ export function shortenHash(value: string, visible = 8) {
 }
 
 export function getAptosTransactionExplorerUrl(transactionHash: string) {
-  return `https://explorer.aptoslabs.com/txn/${encodeURIComponent(transactionHash)}?network=testnet`;
+  return `https://explorer.aptoslabs.com/txn/${encodeURIComponent(transactionHash)}?network=shelbynet`;
 }

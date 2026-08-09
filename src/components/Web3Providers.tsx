@@ -1,6 +1,5 @@
 import { useEffect, type ReactNode } from "react";
 import { AptosWalletAdapterProvider, useWallet } from "@aptos-labs/wallet-adapter-react";
-import { Network } from "@aptos-labs/ts-sdk";
 
 import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
 import { setWalletAdapter } from "@/services/wallet";
@@ -21,7 +20,7 @@ const WalletBridge = ({ children }: { children: ReactNode }) => {
 export const Web3Providers = ({ children }: { children: ReactNode }) => (
   <AptosWalletAdapterProvider
     autoConnect
-    dappConfig={{ network: Network.TESTNET }}
+    dappConfig={{ network: PRIMEGATE_APTOS_NETWORK }}
     disableTelemetry
     onError={(error) => {
       console.error("Aptos wallet adapter error", error);

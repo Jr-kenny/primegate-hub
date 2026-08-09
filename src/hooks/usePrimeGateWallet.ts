@@ -11,7 +11,6 @@ import {
 } from "react";
 import { groupAndSortWallets, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { serializeSignInOutput } from "@aptos-labs/siwa";
-import { Network } from "@aptos-labs/ts-sdk";
 import type { NetworkInfo } from "@aptos-labs/wallet-adapter-react";
 
 import { PRIMEGATE_APTOS_NETWORK } from "@/config/web3-constants";
@@ -35,7 +34,7 @@ import {
 } from "@/services/auth";
 import { connectWallet, disconnectWallet } from "@/services/wallet";
 
-type PrimeGateNetworkName = "devnet" | "local" | "mainnet" | "testnet";
+type PrimeGateNetworkName = "devnet" | "local" | "mainnet" | "shelbynet" | "testnet";
 
 function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -142,6 +141,10 @@ function extractNamedWalletNetwork(
 
   const normalizedName = network.name?.trim().toLowerCase();
   if (normalizedName) {
+    if (normalizedName === "shelbynet" || normalizedName.endsWith(":shelbynet")) {
+      return "shelbynet";
+    }
+
     if (normalizedName === "testnet" || normalizedName.endsWith(":testnet")) {
       return "testnet";
     }
@@ -157,6 +160,15 @@ function extractNamedWalletNetwork(
     if (normalizedName === "local" || normalizedName.endsWith(":local")) {
       return "local";
     }
+  }
+
+  const normalizedUrl = network.url?.trim().toLowerCase();
+  if (normalizedUrl?.includes("shelbynet")) {
+    return "shelbynet";
+  }
+
+  if (network.chainId === 118 || network.chainId === "118" || network.chainId === "0x76") {
+    return "shelbynet";
   }
 
   if (network.chainId === 2 || network.chainId === "2" || network.chainId === "0x2") {
@@ -418,14 +430,14 @@ function usePrimeGateWalletState() {
     try {
       if (networkName === PRIMEGATE_APTOS_NETWORK) {
         toast({
-          title: "Already on testnet",
+          title: "Already on Shelbynet",
           description: `Your wallet is already connected to ${PRIMEGATE_APTOS_NETWORK}.`,
         });
         return;
       }
 
       setIsSwitchingNetwork(true);
-      await wallet.changeNetwork(Network.TESTNET);
+      await wallet.changeNetwork(PRIMEGATE_APTOS_NETWORK);
       toast({
         title: "Network updated",
         description: `Wallet switched to ${PRIMEGATE_APTOS_NETWORK}.`,

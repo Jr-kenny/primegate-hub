@@ -6,11 +6,12 @@ import {
   generateCommitments,
   ShelbyBlobClient,
 } from "@shelby-protocol/sdk/browser";
-import { AccountAddress, Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { AccountAddress, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 
 import { PRIMEGATE_REGISTRY_CONTRACT_ADDRESS } from "@/config/primegate-registry";
 import {
   PRIMEGATE_DEFAULT_BLOB_TTL_MICROS,
+  PRIMEGATE_APTOS_NETWORK,
   PRIMEGATE_SHELBY_API_KEY,
   PRIMEGATE_SHELBY_BASE_URL,
 } from "@/config/web3-constants";
@@ -189,7 +190,7 @@ export function useShelbyPublish() {
       ],
     };
 
-    const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+    const aptos = new Aptos(new AptosConfig({ network: PRIMEGATE_APTOS_NETWORK }));
     const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
     assertSponsorAccountIsDistinctFromPublisher(account.address, sponsorAddress);
     const sponsoredTransaction = await withPrimeGatePublishStage(
@@ -380,7 +381,7 @@ export function useShelbyPublish() {
         encoding: provider.config.enumIndex,
       };
 
-      const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+      const aptos = new Aptos(new AptosConfig({ network: PRIMEGATE_APTOS_NETWORK }));
       const sponsorAddress = AccountAddress.from(sponsorConfig.sponsorAddress);
       assertSponsorAccountIsDistinctFromPublisher(account.address, sponsorAddress);
       const sponsoredTransaction = await withPrimeGatePublishStage(

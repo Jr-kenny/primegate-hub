@@ -7,7 +7,6 @@ import {
   Ed25519Account,
   Ed25519PrivateKey,
   MultiAgentTransaction,
-  Network,
   SimpleTransaction,
   TransactionPayloadEntryFunction,
   type PendingTransactionResponse,
@@ -21,6 +20,11 @@ import {
   PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS,
   encodePrimeGatePackageId,
 } from "../../src/lib/primegate-registry-contract.js";
+import {
+  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_APTOS_NETWORK_NAME,
+  PRIMEGATE_APTOS_NUMERIC_CHAIN_ID,
+} from "../../src/config/primegate-network.js";
 
 const PRIMEGATE_SPONSOR_MAX_TRANSACTION_BYTES = 64 * 1024;
 const PRIMEGATE_SPONSOR_MAX_TRANSACTION_LIFETIME_SECONDS = 30 * 60;
@@ -246,8 +250,11 @@ function assertCommonTransactionFields(
     );
   }
 
-  if (transaction.rawTransaction.chain_id.chainId !== 2) {
-    throw new SponsorTransactionError("The sponsor service only accepts Aptos testnet transactions.", 400);
+  if (transaction.rawTransaction.chain_id.chainId !== PRIMEGATE_APTOS_NUMERIC_CHAIN_ID) {
+    throw new SponsorTransactionError(
+      `The sponsor service only accepts ${PRIMEGATE_APTOS_NETWORK_NAME} transactions.`,
+      400,
+    );
   }
 
   const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -401,7 +408,7 @@ export async function getSponsorFundingStatus(): Promise<SponsorFundingStatus> {
   const sponsorAddress = getSponsorAccountAddress();
   const aptos = new Aptos(
     new AptosConfig({
-      network: Network.TESTNET,
+      network: PRIMEGATE_APTOS_NETWORK,
     }),
   );
   const [aptosBalance, shelbyUsdBalance] = await Promise.all([
@@ -487,7 +494,7 @@ export async function submitSponsoredShelbyTransaction(
   await assertSponsorFunding();
   const aptos = new Aptos(
     new AptosConfig({
-      network: Network.TESTNET,
+      network: PRIMEGATE_APTOS_NETWORK,
     }),
   );
   const sponsorAuthenticator = validated.sponsorAccount.signTransactionWithAuthenticator(validated.transaction);
@@ -512,7 +519,7 @@ export async function submitSponsoredPrimeGateListingTransaction(
   await assertSponsorFunding();
   const aptos = new Aptos(
     new AptosConfig({
-      network: Network.TESTNET,
+      network: PRIMEGATE_APTOS_NETWORK,
     }),
   );
   const sponsorAuthenticator = validated.sponsorAccount.signTransactionWithAuthenticator(validated.transaction);

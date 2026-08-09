@@ -2,7 +2,6 @@ import {
   AccountAddress,
   Aptos,
   AptosConfig,
-  Network,
   type EntryFunctionArgumentTypes,
   type SimpleEntryFunctionArgumentTypes,
 } from "@aptos-labs/ts-sdk";
@@ -13,10 +12,11 @@ import {
   getPrimeGateRegistryFunctionId,
 } from "../../src/lib/primegate-registry-contract.js";
 import { readPrimeGateEnvValue } from "../../src/lib/primegate-env.js";
+import { PRIMEGATE_APTOS_NETWORK } from "../../src/config/primegate-network.js";
 
 const aptos = new Aptos(
   new AptosConfig({
-    network: Network.TESTNET,
+    network: PRIMEGATE_APTOS_NETWORK,
   }),
 );
 

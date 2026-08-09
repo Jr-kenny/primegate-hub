@@ -2,6 +2,7 @@ import { getDatabaseUrl, getSql } from "./_lib/database.js";
 import { isPrimeGateContentEncryptionConfigured } from "./_lib/content-encryption.js";
 import { jsonResponse } from "./_lib/request.js";
 import { getShelbyApiKey, getShelbyRpcBaseUrl } from "./_lib/shelby.js";
+import { PRIMEGATE_APTOS_NETWORK_NAME } from "../src/config/primegate-network.js";
 import { readPrimeGateEnvValue } from "../src/lib/primegate-env.js";
 
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
         data: {
           databaseConfigured: false,
           databaseReachable: false,
-          network: "testnet",
+          network: PRIMEGATE_APTOS_NETWORK_NAME,
           publishConfigured,
           registryConfigured,
           sessionConfigured,
@@ -41,7 +42,7 @@ export async function GET() {
       data: {
         databaseConfigured: Boolean(getDatabaseUrl()),
         databaseReachable: true,
-        network: "testnet",
+        network: PRIMEGATE_APTOS_NETWORK_NAME,
         publishConfigured,
         registryConfigured,
         sessionConfigured,

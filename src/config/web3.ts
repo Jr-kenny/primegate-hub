@@ -8,7 +8,7 @@ import {
 
 export const shelbyClient = new ShelbyClient({
   apiKey: PRIMEGATE_SHELBY_API_KEY || undefined,
-  network: PRIMEGATE_APTOS_NETWORK as never,
+  network: PRIMEGATE_APTOS_NETWORK,
   rpc: {
     baseUrl: PRIMEGATE_SHELBY_BASE_URL,
   },

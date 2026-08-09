@@ -27,8 +27,12 @@ import {
   encodePrimeGatePackageId,
   getPrimeGateRegistryFunctionId,
 } from "../lib/primegate-registry-contract";
-import { Aptos, AptosConfig, Ed25519Account, Ed25519PrivateKey, Network } from "@aptos-labs/ts-sdk";
+import { Aptos, AptosConfig, Ed25519Account, Ed25519PrivateKey } from "@aptos-labs/ts-sdk";
 import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
+import {
+  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL,
+} from "../config/primegate-network";
 
 type CliOptions = {
   baseUrl?: string;
@@ -265,7 +269,6 @@ type WalletMessageChallenge = {
   walletAddress: string;
 };
 
-const DEFAULT_SHELBY_RPC_BASE_URL = "https://api.testnet.shelby.xyz/shelby";
 const DEFAULT_WALLET_PATH = path.join(".local", "primegate-contract-wallet.json");
 
 async function loadDotEnvFile() {
@@ -454,7 +457,7 @@ async function runPublish(options: CliOptions) {
   const walletPattern = options.walletPattern ?? process.env.PRIMEGATE_PUBLISH_WALLET_PATTERN ?? "^primegate-publisher-wallet-.*\\.json$";
   const shelbyApiKey = readPrimeGateEnvValue(process.env.VITE_SHELBY_API_KEY);
   const shelbyRpcBaseUrl =
-    readPrimeGateEnvValue(process.env.VITE_SHELBY_RPC_BASE_URL) || DEFAULT_SHELBY_RPC_BASE_URL;
+    readPrimeGateEnvValue(process.env.VITE_SHELBY_RPC_BASE_URL) || PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL;
   const registryAddress =
     readPrimeGateEnvValue(process.env.VITE_PRIMEGATE_REGISTRY_ADDRESS) ||
     PRIMEGATE_DEPLOYED_REGISTRY_ADDRESS;
@@ -469,10 +472,10 @@ async function runPublish(options: CliOptions) {
     throw new Error("Publish manifest is empty.");
   }
 
-  const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+  const aptos = new Aptos(new AptosConfig({ network: PRIMEGATE_APTOS_NETWORK }));
   const shelbyClient = new ShelbyNodeClient({
     apiKey: shelbyApiKey,
-    network: Network.TESTNET,
+    network: PRIMEGATE_APTOS_NETWORK,
     rpc: {
       baseUrl: shelbyRpcBaseUrl,
     },

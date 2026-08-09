@@ -185,7 +185,7 @@ export default function PackageInstall() {
                   {resolution.payment.amountApt} APT to {resolution.payment.recipientAddress}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  One confirmed testnet payment unlocks this exact artifact for this wallet. A new paid publish would
+                  One confirmed Shelbynet payment unlocks this exact artifact for this wallet. A new paid publish would
                   require a new purchase.
                 </p>
               </div>

@@ -2,7 +2,6 @@ import {
   Aptos,
   AptosConfig,
   AccountAddress,
-  Network,
   type EntryFunctionPayloadResponse,
   isUserTransactionResponse,
 } from "@aptos-labs/ts-sdk";
@@ -15,10 +14,11 @@ import {
   getPrimeGateRegistryListing,
   hasPrimeGateRegistryPurchase,
 } from "./primegate-registry.js";
+import { PRIMEGATE_APTOS_NETWORK_NAME, PRIMEGATE_APTOS_NETWORK } from "../../src/config/primegate-network.js";
 
 const aptos = new Aptos(
   new AptosConfig({
-    network: Network.TESTNET,
+    network: PRIMEGATE_APTOS_NETWORK,
   }),
 );
 
@@ -91,7 +91,7 @@ export async function verifyPublishedAssetPayment(input: {
   try {
     await aptos.waitForTransaction({ transactionHash: normalizedTransactionHash });
   } catch {
-    throw new AuthError("Payment transaction is not yet confirmed on Aptos testnet.", 400);
+    throw new AuthError(`Payment transaction is not yet confirmed on ${PRIMEGATE_APTOS_NETWORK_NAME}.`, 400);
   }
 
   const transaction = await aptos.getTransactionByHash({ transactionHash: normalizedTransactionHash });
@@ -101,7 +101,7 @@ export async function verifyPublishedAssetPayment(input: {
   }
 
   if (!transaction.success) {
-    throw new AuthError("Payment transaction did not succeed on Aptos testnet.", 400);
+    throw new AuthError(`Payment transaction did not succeed on ${PRIMEGATE_APTOS_NETWORK_NAME}.`, 400);
   }
 
   if (normalizeWalletAddress(transaction.sender) !== normalizedBuyerAddress) {

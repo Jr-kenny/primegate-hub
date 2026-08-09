@@ -7,7 +7,6 @@ import {
   Aptos,
   AptosConfig,
   Ed25519PrivateKey,
-  Network,
 } from "@aptos-labs/ts-sdk";
 import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
 
@@ -17,6 +16,10 @@ import {
   encodePrimeGatePackageId,
   getPrimeGateRegistryFunctionId,
 } from "../src/lib/primegate-registry-contract";
+import {
+  PRIMEGATE_APTOS_NETWORK,
+  PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL,
+} from "../src/config/primegate-network";
 
 function loadDotEnv() {
   const envPath = path.resolve(".env");
@@ -104,7 +107,7 @@ type RegistryPackageResolution = {
     amountApt: string;
     amountOctas: string;
     currency: "APT";
-    network: "testnet";
+    network: "shelbynet";
     recipientAddress: string;
   } | null;
 };
@@ -122,7 +125,7 @@ type SmokeResult = {
 const API_BASE_URL = process.env.PRIMEGATE_API_BASE_URL?.trim() || "http://127.0.0.1:3000";
 const SHELBY_API_KEY = process.env.VITE_SHELBY_API_KEY?.trim();
 const SHELBY_RPC_BASE_URL =
-  process.env.VITE_SHELBY_RPC_BASE_URL?.trim() || "https://api.testnet.shelby.xyz/shelby";
+  process.env.VITE_SHELBY_RPC_BASE_URL?.trim() || PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL;
 const REGISTRY_ADDRESS =
   process.env.PRIMEGATE_REGISTRY_ADDRESS?.trim() ||
   process.env.VITE_PRIMEGATE_REGISTRY_ADDRESS?.trim() ||
@@ -147,13 +150,13 @@ const SHELBY_MAX_GAS_AMOUNT = 50_000;
 
 const aptos = new Aptos(
   new AptosConfig({
-    network: Network.TESTNET,
+    network: PRIMEGATE_APTOS_NETWORK,
   }),
 );
 
 const shelbyClient = new ShelbyNodeClient({
   apiKey: SHELBY_API_KEY,
-  network: Network.TESTNET,
+  network: PRIMEGATE_APTOS_NETWORK,
   rpc: {
     baseUrl: SHELBY_RPC_BASE_URL,
   },
