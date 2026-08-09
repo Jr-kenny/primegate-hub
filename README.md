@@ -34,7 +34,7 @@ flowchart LR
   publisher[Publisher browser] -->|wallet auth + publish intent| primegate[PrimeGate]
   publisher -->|encrypted asset + manifest| shelby[(Shelby hot storage)]
   publisher -->|publisher signature| submitter[Render transaction submitter]
-  submitter -->|sponsor signature + submit| aptos[(Aptos testnet)]
+  submitter -->|sponsor signature + submit| aptos[(Aptos Shelbynet)]
   primegate -->|allow-listed intent + session check| submitter
   primegate -->|release metadata + key envelope| neon[(Neon Postgres)]
   consumer[Consumer or agent] -->|resolve + install| primegate
@@ -189,7 +189,7 @@ curl https://primegatelive.vercel.app/api/health
 
 The server-side transaction submitter is a separate Render web service provisioned by [`render.yaml`](render.yaml). It exposes `/health` and a token-protected `/submit` endpoint. Set `PRIMEGATE_SPONSOR_SERVICE_TOKEN`, `PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY`, and `PRIMEGATE_SHELBY_SPONSOR_ADDRESS` in Render. Set the Render service URL, the same service token, and the public sponsor address in Vercel. The private key stays in Render and is never sent to the browser or Vercel.
 
-The current environment is connected to Aptos testnet and Shelby testnet. Mainnet configuration is a deployment change, not a different package or storage model.
+The current environment is connected to Aptos Shelbynet. Shelby Testnet has been retired. Mainnet configuration is a deployment change, not a different package or storage model.
 
 ## Repository layout
 
