@@ -1,5 +1,6 @@
 export type PrimeGatePublishErrorStage =
   | "wallet session"
+  | "wallet network"
   | "publish intent"
   | "Shelby RPC preflight"
   | "Shelby commitments"

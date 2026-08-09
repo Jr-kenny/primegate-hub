@@ -157,6 +157,7 @@ export function useShelbyPublish() {
     account,
     address,
     ensurePrimeGateSession,
+    ensurePrimeGateTransactionNetwork,
     signTransaction,
   } = usePrimeGateWallet();
   const canPublish = useMemo(
@@ -178,6 +179,9 @@ export function useShelbyPublish() {
     }
 
     assertSponsorServiceAvailable(sponsorConfig);
+    await withPrimeGatePublishStage("wallet network", () =>
+      ensurePrimeGateTransactionNetwork(),
+    );
 
     const listingOptions = await getPrimeGateTransactionOptions(10_000);
     const listingData = {
@@ -353,6 +357,9 @@ export function useShelbyPublish() {
         () => fetchPrimeGateShelbySponsorConfig(),
       );
       assertSponsorServiceAvailable(sponsorConfig);
+      await withPrimeGatePublishStage("wallet network", () =>
+        ensurePrimeGateTransactionNetwork(),
+      );
       const blobRegistration = {
         account: AccountAddress.from(account.address),
         expirationMicros: shelbyExpirationMicros,

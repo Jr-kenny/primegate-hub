@@ -28,6 +28,10 @@ import {
   getPrimeGateWalletAuthChainId,
   shouldUsePrimeGateWalletMessageAuth,
 } from "@/lib/primegate-wallet-auth";
+import {
+  isPrimeGateTransactionNetwork,
+  requestPrimeGateTransactionNetwork,
+} from "@/lib/primegate-wallet-network";
 import { normalizeAptosAddress } from "@/services/aptos";
 import {
   clearPrimeGateSession,
@@ -342,6 +346,10 @@ function usePrimeGateWalletState() {
       throw new Error("The connected wallet name was not available.");
     }
 
+    if (walletHasNetworkFeature && !resolvedNetworkInfo) {
+      throw new Error("PrimeGate is still reading the connected wallet network.");
+    }
+
     if (usesWalletMessageAuth) {
       if (!wallet.signMessage) {
         throw new Error("The connected wallet does not support PrimeGate authentication.");
@@ -416,7 +424,38 @@ function usePrimeGateWalletState() {
     persistPrimeGateSession(nextSession);
     setSession(nextSession);
     return nextSession;
-  }, [address, effectiveNetworkInfo, usesWalletMessageAuth, wallet]);
+  }, [address, effectiveNetworkInfo, resolvedNetworkInfo, usesWalletMessageAuth, wallet, walletHasNetworkFeature]);
+
+  const ensurePrimeGateTransactionNetwork = useCallback(async () => {
+    if (!wallet.connected || !wallet.wallet?.name) {
+      throw new Error("Connect an Aptos wallet before signing a PrimeGate transaction.");
+    }
+
+    if (isPrimeGateTransactionNetwork(effectiveNetworkInfo)) {
+      return effectiveNetworkInfo;
+    }
+
+    await requestPrimeGateTransactionNetwork(wallet.wallet.features, wallet.wallet.name);
+
+    if (!walletHasNetworkFeature) {
+      return {
+        chainId: 118,
+        name: PRIMEGATE_APTOS_NETWORK,
+      } satisfies NetworkInfo;
+    }
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const nextNetwork = await wallet.wallet.features["aptos:network"].network();
+      if (isPrimeGateTransactionNetwork(nextNetwork)) {
+        setResolvedNetworkInfo(nextNetwork);
+        return nextNetwork;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
+    }
+
+    throw new Error(`${wallet.wallet.name} did not switch to Shelbynet.`);
+  }, [effectiveNetworkInfo, wallet.connected, wallet.wallet, walletHasNetworkFeature]);
 
   async function runSessionAttempt<T>(attempt: () => Promise<T>) {
     setIsVerifyingSession(true);
@@ -515,7 +554,15 @@ function usePrimeGateWalletState() {
       return;
     }
 
-    if (!wallet.connected || !wallet.account || !address || wallet.isLoading || session || isVerifyingSession) {
+    if (
+      !wallet.connected ||
+      !wallet.account ||
+      !address ||
+      wallet.isLoading ||
+      isRefreshingNetwork ||
+      session ||
+      isVerifyingSession
+    ) {
       return;
     }
 
@@ -524,14 +571,21 @@ function usePrimeGateWalletState() {
     void ensurePrimeGateSession().catch(() => {
       // ensurePrimeGateSession already records the error state.
     });
-  }, [address, ensurePrimeGateSession, isVerifyingSession, session, wallet.account, wallet.connected, wallet.isLoading]);
+  }, [address, ensurePrimeGateSession, isRefreshingNetwork, isVerifyingSession, session, wallet.account, wallet.connected, wallet.isLoading]);
 
   useEffect(() => {
     if (!address) {
       return;
     }
 
-    if (!wallet.connected || !wallet.account || wallet.isLoading || session || isVerifyingSession) {
+    if (
+      !wallet.connected ||
+      !wallet.account ||
+      wallet.isLoading ||
+      isRefreshingNetwork ||
+      session ||
+      isVerifyingSession
+    ) {
       return;
     }
 
@@ -543,7 +597,7 @@ function usePrimeGateWalletState() {
     void ensurePrimeGateSessionSilently().catch(() => {
       // Silent auto sign-in; errors are logged but not surfaced as toasts.
     });
-  }, [address, ensurePrimeGateSessionSilently, isVerifyingSession, session, wallet.account, wallet.connected, wallet.isLoading]);
+  }, [address, ensurePrimeGateSessionSilently, isRefreshingNetwork, isVerifyingSession, session, wallet.account, wallet.connected, wallet.isLoading]);
 
   const connect = async (walletName?: string) => {
     setLastSessionError(null);
@@ -597,6 +651,7 @@ function usePrimeGateWalletState() {
     connect,
     disconnect,
     ensurePrimeGateSession,
+    ensurePrimeGateTransactionNetwork,
     hasSession: Boolean(session),
     installableWallets: groupedWallets.installableWallets,
     isConnected: wallet.connected,
