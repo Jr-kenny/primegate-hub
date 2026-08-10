@@ -34,6 +34,43 @@ export function getShelbyRequestOrigin() {
     : `https://${configuredOrigin}`;
 }
 
+function encodeShelbyBlobName(blobName: string) {
+  return blobName
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+export async function downloadShelbyBlob({
+  account,
+  blobName,
+  range,
+}: {
+  account: string;
+  blobName: string;
+  range?: { end?: number; start: number };
+}) {
+  const baseUrl = getShelbyRpcBaseUrl().replace(/\/$/, "");
+  const url = `${baseUrl}/v1/blobs/${encodeURIComponent(account)}/${encodeShelbyBlobName(blobName)}`;
+  const headers: Record<string, string> = { Origin: getShelbyRequestOrigin() };
+  const apiKey = getShelbyApiKey();
+
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  if (range) {
+    headers.Range = `bytes=${range.start}-${range.end ?? ""}`;
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok || !response.body) {
+    throw new Error(`Failed to download blob: ${response.status} ${response.statusText}`);
+  }
+
+  return { readable: response.body };
+}
+
 let shelbyClient: ShelbyNodeClient | null = null;
 
 export function getShelbyClient() {

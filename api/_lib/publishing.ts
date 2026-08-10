@@ -11,7 +11,7 @@ import {
   readPrimeGateEncryptedBlobBytes,
   wrapPrimeGateContentKey,
 } from "./content-encryption.js";
-import { getShelbyClient } from "./shelby.js";
+import { downloadShelbyBlob, getShelbyClient } from "./shelby.js";
 import {
   commitPublisherPublish,
   reservePublisherPublish,
@@ -237,7 +237,7 @@ export function verifyPublishAttestationToken(token: string) {
 }
 
 async function readShelbyBlobBytes(account: string, blobName: string) {
-  const blob = await getShelbyClient().download({
+  const blob = await downloadShelbyBlob({
     account,
     blobName,
   });
@@ -275,7 +275,7 @@ export async function readPublishedManifest(
   const manifestBytes = options.contentKey
     ? await readPrimeGateEncryptedBlobBytes(
         (range) =>
-          getShelbyClient().download({
+          downloadShelbyBlob({
             account: ownerAddress,
             blobName: manifestBlobName,
             range,
@@ -319,7 +319,7 @@ async function openShelbyBlobStream(
   blobName: string,
   range?: { end?: number; start: number },
 ) {
-  const blob = await getShelbyClient().download({
+  const blob = await downloadShelbyBlob({
     account: ownerAddress,
     blobName,
     range,
@@ -371,7 +371,7 @@ export function openPublishedAssetStream(
 
     return openPrimeGateDecryptedBlobStream(
       (blobRange) =>
-        getShelbyClient().download({
+        downloadShelbyBlob({
           account: ownerAddress,
           blobName: assetBlobName,
           range: blobRange,
@@ -596,13 +596,13 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
   }
 
   const assetDownload = (range?: { end: number; start: number }) =>
-    shelby.download({
+    downloadShelbyBlob({
       account: claims.storageAccount,
       blobName: claims.assetBlobName,
       range,
     });
   const manifestDownload = (range?: { end: number; start: number }) =>
-    shelby.download({
+    downloadShelbyBlob({
       account: claims.storageAccount,
       blobName: claims.manifestBlobName,
       range,
