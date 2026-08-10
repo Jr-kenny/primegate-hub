@@ -567,11 +567,11 @@ export async function finalizePublishedAsset(ownerAddress: string, input: unknow
 
   const shelby = getShelbyClient();
   const [assetMetadata, manifestMetadata] = await Promise.all([
-    shelby.coordination.getBlobMetadata({
+    shelby.coordination.getFullObjectMetadata({
       account: claims.storageAccount,
       name: claims.assetBlobName,
     }),
-    shelby.coordination.getBlobMetadata({
+    shelby.coordination.getFullObjectMetadata({
       account: claims.storageAccount,
       name: claims.manifestBlobName,
     }),
