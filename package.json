@@ -9,6 +9,8 @@
     "dev:api": "vercel dev --listen 3000 --yes",
     "dev:local": "concurrently -n api,web -c blue,green \"pnpm dev:api\" \"pnpm dev\"",
     "primegate": "tsx src/cli/primegate.ts",
+    "primegate:mcp": "tsx src/mcp/primegate-mcp.ts",
+    "smoke:mcp": "tsx scripts/smoke-mcp.ts",
     "smoke:contract-purchase": "tsx scripts/smoke-contract-purchase.ts",
     "build": "vite build",
     "build:dev": "vite build --mode development",
@@ -25,6 +27,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/spectral": "^5.2.8",
     "@hookform/resolvers": "^3.10.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -79,10 +82,11 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@modelcontextprotocol/client": "2.0.0",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",

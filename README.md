@@ -118,6 +118,39 @@ pnpm primegate publish --manifest <path>
 
 The CLI uses the release manifest and package id rather than reaching into Shelby directly. That keeps automation on the same access and verification path as the web app.
 
+### MCP server
+
+PrimeGate includes a local stdio MCP server for agent runtimes. It exposes separate tools for catalog search, package resolution, integrity verification, installation, and real sponsored publication. Package releases are also readable through the `mcp://primegate.io/packages/{packageId}` resource template.
+
+Run it from this checkout:
+
+```bash
+pnpm primegate:mcp
+```
+
+Example MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "primegate": {
+      "command": "pnpm",
+      "args": [
+        "--silent",
+        "--dir",
+        "/absolute/path/to/primegate-hub",
+        "primegate:mcp"
+      ],
+      "env": {
+        "PRIMEGATE_BASE_URL": "https://primegatelive.vercel.app"
+      }
+    }
+  }
+}
+```
+
+The read tools use the public PrimeGate API. The publish tool reads local manifest and artifact paths, keeps the publisher wallet on the agent host, and uses the same publisher-signature plus Render-sponsor flow as the CLI. Paid package access can use `PRIMEGATE_SESSION_TOKEN` from the MCP process environment.
+
 ## Local development
 
 PrimeGate uses `pnpm` and runs the Vite web app beside the Vercel-compatible API during local development.
@@ -202,6 +235,7 @@ src/components/       Shared UI and package presentation
 src/hooks/            Wallet, catalog, publishing, and route-data hooks
 src/lib/              Package model, registry client, encryption, and Aptos helpers
 src/cli/              PrimeGate CLI
+src/mcp/              PrimeGate MCP server
 db/                   Neon schema and deployment-safe seed file
 artifacts/             Usable local artifacts for release verification
 review/                Integration and release review notes
