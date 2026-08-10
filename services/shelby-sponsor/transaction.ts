@@ -39,6 +39,7 @@ const PRIMEGATE_SPONSOR_MAX_TRANSACTION_LIFETIME_SECONDS = 30 * 60;
 const PRIMEGATE_SPONSOR_MAX_GAS_AMOUNT = 100_000n;
 const PRIMEGATE_SPONSOR_ALLOWED_FUNCTION = "register_multiple_blobs_with_sponsor";
 const PRIMEGATE_SPONSOR_DEFAULT_MIN_APT_OCTAS = 5_000_000n;
+const PRIMEGATE_DEFAULT_SHELBY_LOCATION = "shelbynet-1";
 const MAX_U64 = 18_446_744_073_709_551_615n;
 
 function createPrimeGateShelbyAptosClient() {
@@ -691,6 +692,8 @@ export async function submitServerOwnedShelbyRegistration(
       blobs: input.blobs,
       encoding: input.encoding,
       expirationMicros: input.expirationMicros,
+      selectedLocation:
+        readEnv("PRIMEGATE_SHELBY_LOCATION") || PRIMEGATE_DEFAULT_SHELBY_LOCATION,
       useSponsoredUsdVariant: true,
     }),
     options: {
