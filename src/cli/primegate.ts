@@ -27,11 +27,27 @@ import {
   encodePrimeGatePackageId,
   getPrimeGateRegistryFunctionId,
 } from "../lib/primegate-registry-contract";
-import { Aptos, AptosConfig, Ed25519Account, Ed25519PrivateKey } from "@aptos-labs/ts-sdk";
-import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
+import {
+  AccountAddress,
+  Aptos,
+  AptosConfig,
+  Ed25519Account,
+  Ed25519PrivateKey,
+} from "@aptos-labs/ts-sdk";
+import {
+  createBlobKey,
+  createDefaultErasureCodingProvider,
+  expectedTotalChunksets,
+  generateCommitments,
+  requiredAckCount,
+  SHELBY_DEPLOYER,
+  ShelbyBlobClient,
+  ShelbyNodeClient,
+} from "@shelby-protocol/sdk/node";
 import {
   PRIMEGATE_APTOS_NETWORK,
   PRIMEGATE_SHELBY_APTOS_NETWORK,
+  PRIMEGATE_DEFAULT_SHELBY_APTOS_FULLNODE_URL,
   PRIMEGATE_DEFAULT_SHELBY_RPC_BASE_URL,
 } from "../config/primegate-network";
 
@@ -214,8 +230,13 @@ async function readPrimeGateStream(stream: ReadableStream<Uint8Array>) {
 type PublishManifestItem = {
   description: string;
   filePath: string;
+  keywords?: string[];
+  license?: string;
   packageSlug: string;
   priceApt: string;
+  readmeMarkdown?: string;
+  releaseChannel?: string;
+  releaseNotes?: string;
   releaseVersion: string;
   title: string;
 };
@@ -232,7 +253,17 @@ type PublishIntentResponse = {
   id: string;
   manifestBlobName: string;
   ownerAddress: string;
+  storageAccount: string;
 };
+
+type PrimeGateShelbySponsorConfig = {
+  enabled: boolean;
+  serviceHealthy: boolean;
+  sponsorAddress: string | null;
+  status: "active" | "unavailable" | "not-configured";
+};
+
+type PrimeGateSponsorSubmission = { hash: string };
 
 type PublishedAssetRecord = {
   assetBlobName: string;
@@ -354,6 +385,9 @@ function getMimeType(filePath: string) {
       return "image/svg+xml";
     case ".png":
       return "image/png";
+    case ".gz":
+    case ".tgz":
+      return "application/gzip";
     default:
       return "application/octet-stream";
   }
@@ -381,6 +415,45 @@ async function requestJson<T>(baseUrl: string, path: string, init?: RequestInit,
   }
 
   return payload.data as T;
+}
+
+function assertSponsorServiceAvailable(config: PrimeGateShelbySponsorConfig) {
+  if (config.status !== "active" || !config.enabled || !config.sponsorAddress) {
+    throw new Error("The PrimeGate sponsor service is not ready for autonomous publishing.");
+  }
+}
+
+async function submitSponsorOperation(
+  baseUrl: string,
+  token: string,
+  payload: Record<string, unknown>,
+) {
+  return requestJson<PrimeGateSponsorSubmission>(
+    baseUrl,
+    "/api/shelby-sponsor/submit",
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+async function withShelbyRequestOrigin<T>(origin: string, operation: () => Promise<T>) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith("https://api.shelbynet.shelby.xyz/")) {
+      return originalFetch(input, init);
+    }
+
+    const headers = new Headers(init?.headers);
+    headers.set("Origin", origin);
+    return originalFetch(input, { ...init, headers });
+  };
+
+  try {
+    return await operation();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 }
 
 async function createPrimeGateSessionToken(baseUrl: string, account: Ed25519Account) {
@@ -450,6 +523,42 @@ async function createPrimeGateSessionToken(baseUrl: string, account: Ed25519Acco
   return session.session.token;
 }
 
+async function loadOrCreatePublisherAccount(walletPath: string) {
+  const resolvedPath = path.resolve(walletPath);
+  try {
+    const walletRaw = await readFile(resolvedPath, "utf8");
+    const wallet = JSON.parse(walletRaw) as { privateKey?: string };
+    if (!wallet.privateKey) {
+      throw new Error(`Wallet file is missing the privateKey: ${resolvedPath}`);
+    }
+
+    return new Ed25519Account({
+      privateKey: new Ed25519PrivateKey(wallet.privateKey),
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+
+    const account = Ed25519Account.generate();
+    await mkdir(path.dirname(resolvedPath), { recursive: true });
+    await writeFile(
+      resolvedPath,
+      JSON.stringify(
+        {
+          address: account.accountAddress.toStringLong().toLowerCase(),
+          privateKey: account.privateKey.toString(),
+        },
+        null,
+        2,
+      ),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    console.error(`Created autonomous publisher wallet at ${resolvedPath}`);
+    return account;
+  }
+}
+
 async function runPublish(options: CliOptions) {
   await loadDotEnv();
   const baseUrl = options.baseUrl ?? process.env.PRIMEGATE_BASE_URL ?? DEFAULT_BASE_URL;
@@ -474,6 +583,7 @@ async function runPublish(options: CliOptions) {
   }
 
   const aptos = new Aptos(new AptosConfig({ network: PRIMEGATE_APTOS_NETWORK }));
+  const shelbyAptos = new Aptos(new AptosConfig({ network: PRIMEGATE_SHELBY_APTOS_NETWORK }));
   const shelbyClient = new ShelbyNodeClient({
     apiKey: shelbyApiKey,
     network: PRIMEGATE_SHELBY_APTOS_NETWORK,
@@ -488,7 +598,12 @@ async function runPublish(options: CliOptions) {
     walletFiles = [options.wallet];
   } else {
     const resolvedWalletsDir = path.resolve(walletsDir);
-    const files = await readdir(resolvedWalletsDir);
+    const files = await readdir(resolvedWalletsDir).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    });
     const pattern = new RegExp(walletPattern);
     walletFiles = files.filter((file) => pattern.test(file)).map((file) => path.join(resolvedWalletsDir, file));
   }
@@ -524,15 +639,7 @@ async function runPublish(options: CliOptions) {
     const walletPath = walletFiles[index % walletFiles.length];
     let walletEntry = walletCache.get(walletPath);
     if (!walletEntry) {
-      const walletRaw = await readFile(path.resolve(walletPath), "utf8");
-      const wallet = JSON.parse(walletRaw) as { privateKey: string; address?: string };
-      if (!wallet.privateKey) {
-        throw new Error(`Wallet file is missing the privateKey: ${walletPath}`);
-      }
-
-      const account = new Ed25519Account({
-        privateKey: new Ed25519PrivateKey(wallet.privateKey),
-      });
+      const account = await loadOrCreatePublisherAccount(walletPath);
       const token = await createPrimeGateSessionToken(baseUrl, account);
       walletEntry = { account, token };
       walletCache.set(walletPath, walletEntry);
@@ -545,6 +652,11 @@ async function runPublish(options: CliOptions) {
     const assetSha256 = sha256Hex(fileBytes);
     const normalizedPrice = normalizeAptAmount(item.priceApt);
     const normalizedVersion = normalizePrimeGateReleaseVersion(item.releaseVersion);
+    const keywords = item.keywords ?? [];
+    const license = item.license?.trim() || "Custom";
+    const readmeMarkdown = item.readmeMarkdown ?? "";
+    const releaseChannel = item.releaseChannel?.trim() || "latest";
+    const releaseNotes = item.releaseNotes ?? "";
     const mimeType = getMimeType(absolutePath);
     const originalFileName = path.basename(absolutePath);
 
@@ -562,10 +674,15 @@ async function runPublish(options: CliOptions) {
           body: JSON.stringify({
             assetSha256,
             description: item.description,
+            keywords,
+            license,
             mimeType,
             originalFileName,
             packageSlug: normalizedSlug,
             priceApt: normalizedPrice,
+            readmeMarkdown,
+            releaseChannel,
+            releaseNotes,
             releaseVersion: normalizedVersion,
             sizeBytes: fileBytes.byteLength,
             title: item.title,
@@ -597,19 +714,20 @@ async function runPublish(options: CliOptions) {
           tagBytes: PRIMEGATE_CONTENT_ENCRYPTION_TAG_BYTES,
           version: PRIMEGATE_CONTENT_ENCRYPTION_VERSION,
         },
-        keywords: [],
-        license: "Custom",
+        keywords,
+        license,
         manifestBlobName: publishIntent.manifestBlobName,
         mimeType,
         originalFileName,
         ownerAddress: account.accountAddress.toStringLong().toLowerCase(),
+        storageAccount: publishIntent.storageAccount,
         packageSlug: normalizedSlug,
         priceApt: normalizedPrice,
         publishAttestation: publishIntent.attestationToken,
         publishIntentId: publishIntent.id,
-        readmeMarkdown: "",
-        releaseChannel: "latest",
-        releaseNotes: "",
+        readmeMarkdown,
+        releaseChannel,
+        releaseNotes,
         releaseVersion: normalizedVersion,
         sizeBytes: fileBytes.byteLength,
         source: "primegate",
@@ -633,25 +751,114 @@ async function runPublish(options: CliOptions) {
       if (encryptedManifestBytes.byteLength !== encryptedManifest.ciphertextSize) {
         throw new Error("PrimeGate encrypted manifest size did not match the generated ciphertext.");
       }
+
+      const provider = await createDefaultErasureCodingProvider();
+      const [assetCommitments, manifestCommitments] = await Promise.all([
+        generateCommitments(provider, encryptedAssetBytes),
+        generateCommitments(provider, encryptedManifestBytes),
+      ]);
+      const sponsorConfig = await requestJson<PrimeGateShelbySponsorConfig>(
+        baseUrl,
+        "/api/shelby-sponsor/config",
+        undefined,
+        token,
+      );
+      assertSponsorServiceAvailable(sponsorConfig);
       const expirationMicros = (Date.now() + 365 * 24 * 60 * 60 * 1000) * 1000;
-
-      await withRetry(() =>
-        shelbyClient.upload({
-          signer: account,
-          blobData: encryptedAssetBytes,
+      const registration = await submitSponsorOperation(baseUrl, token, {
+        attestationToken: publishIntent.attestationToken,
+        blobs: [
+          {
+            blobMerkleRoot: assetCommitments.blob_merkle_root,
+            blobName: publishIntent.assetBlobName,
+            blobSize: assetCommitments.raw_data_size,
+            numChunksets: expectedTotalChunksets(
+              assetCommitments.raw_data_size,
+              provider.config.chunkSizeBytes * provider.config.erasure_k,
+            ),
+          },
+          {
+            blobMerkleRoot: manifestCommitments.blob_merkle_root,
+            blobName: publishIntent.manifestBlobName,
+            blobSize: manifestCommitments.raw_data_size,
+            numChunksets: expectedTotalChunksets(
+              manifestCommitments.raw_data_size,
+              provider.config.chunkSizeBytes * provider.config.erasure_k,
+            ),
+          },
+        ],
+        encoding: provider.config.enumIndex,
+        expirationMicros,
+        operation: "shelby-registration-v2",
+        walletAddress: account.accountAddress.toStringLong(),
+      });
+      const confirmedRegistration = await shelbyAptos.waitForTransaction({
+        transactionHash: registration.hash,
+      });
+      const uidByObjectName = new Map(
+        ShelbyBlobClient.registeredBlobUids(
+          "events" in confirmedRegistration ? confirmedRegistration.events : [],
+          AccountAddress.from(SHELBY_DEPLOYER),
+        ).map((registered) => [registered.objectName, registered.uid]),
+      );
+      const assetUid = uidByObjectName.get(
+        createBlobKey({
+          account: publishIntent.storageAccount,
           blobName: publishIntent.assetBlobName,
-          expirationMicros,
+        }),
+      );
+      const manifestUid = uidByObjectName.get(
+        createBlobKey({
+          account: publishIntent.storageAccount,
+          blobName: publishIntent.manifestBlobName,
         }),
       );
 
-      await withRetry(() =>
-        shelbyClient.upload({
-          signer: account,
-          blobData: encryptedManifestBytes,
-          blobName: publishIntent.manifestBlobName,
-          expirationMicros,
-        }),
+      if (assetUid === undefined || manifestUid === undefined) {
+        throw new Error("Shelby did not return both registered blob identifiers.");
+      }
+
+      const uploadOrigin = new URL(baseUrl).origin;
+      const [assetUpload, manifestUpload] = await withShelbyRequestOrigin(uploadOrigin, () =>
+        Promise.all([
+          shelbyClient.rpc.putBlobChunksets({
+            accountAddress: publishIntent.storageAccount,
+            blobData: encryptedAssetBytes,
+            commitments: assetCommitments,
+            totalBytes: encryptedAssetBytes.byteLength,
+            uid: assetUid,
+          }),
+          shelbyClient.rpc.putBlobChunksets({
+            accountAddress: publishIntent.storageAccount,
+            blobData: encryptedManifestBytes,
+            commitments: manifestCommitments,
+            totalBytes: encryptedManifestBytes.byteLength,
+            uid: manifestUid,
+          }),
+        ]),
       );
+      const minimumAcks = requiredAckCount(provider.config.erasure_n);
+      if (assetUpload.spAcks.length < minimumAcks || manifestUpload.spAcks.length < minimumAcks) {
+        throw new Error("Shelby did not return enough storage provider acknowledgements.");
+      }
+
+      for (const commit of [
+        { blobName: publishIntent.assetBlobName, spAcks: assetUpload.spAcks, uid: assetUid },
+        { blobName: publishIntent.manifestBlobName, spAcks: manifestUpload.spAcks, uid: manifestUid },
+      ]) {
+        const pendingCommit = await submitSponsorOperation(baseUrl, token, {
+          attestationToken: publishIntent.attestationToken,
+          blobName: commit.blobName,
+          operation: "shelby-commit-v2",
+          storageProviderAcks: commit.spAcks.map((ack) => ({
+            signature: `0x${Buffer.from(ack.signature).toString("hex")}`,
+            slot: ack.slot,
+          })),
+          uid: commit.uid.toString(),
+          walletAddress: account.accountAddress.toStringLong(),
+        });
+        await shelbyAptos.waitForTransaction({ transactionHash: pendingCommit.hash });
+      }
 
       const finalized = await requestJson<PublishedAssetRecord>(
         baseUrl,
@@ -670,6 +877,7 @@ async function runPublish(options: CliOptions) {
         const listingOptions = await getPrimeGateTransactionOptions(10_000);
         const listingTransaction = await aptos.transaction.build.simple({
           sender: account.accountAddress,
+          withFeePayer: true,
           data: {
             function: getPrimeGateRegistryFunctionId(registryAddress, "upsert_listing"),
             functionArguments: [
@@ -679,10 +887,15 @@ async function runPublish(options: CliOptions) {
           },
           options: listingOptions,
         });
-
-        const pending = await aptos.signAndSubmitTransaction({
-          signer: account,
-          transaction: listingTransaction,
+        listingTransaction.feePayerAddress = AccountAddress.from(sponsorConfig.sponsorAddress!);
+        const senderAuthenticator = account.signTransactionWithAuthenticator(listingTransaction);
+        const pending = await submitSponsorOperation(baseUrl, token, {
+          expectedPackageId: finalized.id,
+          expectedPriceOctas: parseAptAmountToOctas(normalizedPrice).toString(),
+          operation: "primegate-listing",
+          senderAuthenticatorHex: senderAuthenticator.bcsToHex().toString(),
+          transactionHex: listingTransaction.bcsToHex().toString(),
+          walletAddress: account.accountAddress.toStringLong(),
         });
         await aptos.waitForTransaction({ transactionHash: pending.hash });
 
