@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import {
   SponsorConfigurationError,
   SponsorTransactionError,
+  getManagedStorageAccountAddress,
   getSponsorAccountAddress,
   getSponsorFundingStatus,
   submitServerOwnedShelbyCommit,
@@ -142,6 +143,7 @@ function parseRequestBody(rawBody: string): SponsoredTransactionInput {
 
   if (body.operation === "shelby-registration-v2") {
     if (
+      typeof body.storageAccount !== "string" ||
       !Array.isArray(body.expectedBlobNames) ||
       body.expectedBlobNames.some((name) => typeof name !== "string") ||
       !Array.isArray(body.blobs) ||
@@ -162,12 +164,14 @@ function parseRequestBody(rawBody: string): SponsoredTransactionInput {
       expectedBlobNames: body.expectedBlobNames,
       expirationMicros: body.expirationMicros,
       operation: "shelby-registration-v2",
+      storageAccount: body.storageAccount,
       walletAddress: body.walletAddress,
     };
   }
 
   if (body.operation === "shelby-commit-v2") {
     if (
+      typeof body.storageAccount !== "string" ||
       typeof body.blobName !== "string" ||
       typeof body.uid !== "string" ||
       !Array.isArray(body.storageProviderAcks)
@@ -178,6 +182,7 @@ function parseRequestBody(rawBody: string): SponsoredTransactionInput {
     return {
       blobName: body.blobName,
       operation: "shelby-commit-v2",
+      storageAccount: body.storageAccount,
       storageProviderAcks: body.storageProviderAcks as Array<{
         signature: string;
         slot: number;
@@ -284,7 +289,7 @@ export async function handleSponsorRequest(request: IncomingMessage, response: S
     return;
   }
 
-  if (request.method !== "POST" || request.url !== "/submit") {
+  if (request.method !== "POST" || (request.url !== "/submit" && request.url !== "/storage-account")) {
     response.setHeader("Allow", "GET, POST");
     writeJson(response, 405, { error: "Method not allowed." });
     return;
@@ -296,6 +301,17 @@ export async function handleSponsorRequest(request: IncomingMessage, response: S
   }
 
   try {
+    if (request.url === "/storage-account") {
+      const body = JSON.parse(await readRequestBody(request)) as SponsorRequestBody;
+      if (typeof body.walletAddress !== "string") {
+        throw new SponsorTransactionError("The publisher wallet address is required.", 400);
+      }
+      writeJson(response, 200, {
+        storageAccount: getManagedStorageAccountAddress(body.walletAddress),
+      });
+      return;
+    }
+
     const input = parseRequestBody(await readRequestBody(request));
     const pendingTransaction =
       input.operation === "shelby-registration-v2"

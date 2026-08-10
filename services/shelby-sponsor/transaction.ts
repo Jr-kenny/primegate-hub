@@ -7,10 +7,13 @@ import {
   Ed25519Account,
   Ed25519PrivateKey,
   MultiAgentTransaction,
+  PrivateKey,
+  PrivateKeyVariants,
   SimpleTransaction,
   TransactionPayloadEntryFunction,
   type PendingTransactionResponse,
 } from "@aptos-labs/ts-sdk";
+import { createHmac } from "node:crypto";
 import {
   SHELBY_DEPLOYER,
   SHELBYUSD_FA_METADATA_ADDRESS,
@@ -75,12 +78,14 @@ export type ServerOwnedShelbyRegistrationInput = {
   expectedBlobNames: string[];
   expirationMicros: number;
   operation: "shelby-registration-v2";
+  storageAccount: string;
   walletAddress: string;
 };
 
 export type ServerOwnedShelbyCommitInput = {
   blobName: string;
   operation: "shelby-commit-v2";
+  storageAccount: string;
   storageProviderAcks: Array<{
     signature: string;
     slot: number;
@@ -175,6 +180,51 @@ function parseSponsorAccount() {
 
       throw new SponsorConfigurationError("PRIMEGATE_SHELBY_SPONSOR_ADDRESS is invalid.");
     }
+  }
+
+  return account;
+}
+
+function deriveManagedStorageAccount(walletAddress: string) {
+  const sponsorAccount = parseSponsorAccount();
+
+  let normalizedWallet: string;
+  try {
+    normalizedWallet = normalizeAddress(walletAddress);
+  } catch {
+    throw new SponsorTransactionError("The publisher wallet address is invalid.", 400);
+  }
+
+  const seed = createHmac("sha256", sponsorAccount.privateKey.toUint8Array())
+    .update(`primegate-shelby-storage-v1:${normalizedWallet}`)
+    .digest();
+
+  return new Ed25519Account({
+    privateKey: new Ed25519PrivateKey(
+      PrivateKey.formatPrivateKey(`0x${seed.toString("hex")}`, PrivateKeyVariants.Ed25519),
+    ),
+  });
+}
+
+export function getManagedStorageAccountAddress(walletAddress: string) {
+  return deriveManagedStorageAccount(walletAddress).accountAddress.toStringLong();
+}
+
+function assertManagedStorageAccount(input: { storageAccount: string; walletAddress: string }) {
+  const account = deriveManagedStorageAccount(input.walletAddress);
+
+  let requestedAddress: string;
+  try {
+    requestedAddress = normalizeAddress(input.storageAccount);
+  } catch {
+    throw new SponsorTransactionError("The managed Shelby storage account is invalid.", 400);
+  }
+
+  if (requestedAddress !== normalizeAddress(account.accountAddress.toString())) {
+    throw new SponsorTransactionError(
+      "The managed Shelby storage account does not match the authenticated publisher.",
+      401,
+    );
   }
 
   return account;
@@ -633,22 +683,30 @@ export async function submitServerOwnedShelbyRegistration(
   await assertSponsorFunding();
 
   const sponsorAccount = parseSponsorAccount();
+  const storageAccount = assertManagedStorageAccount(input);
   const aptos = createPrimeGateShelbyAptosClient();
-  const transaction = await aptos.transaction.build.simple({
+  const transaction = await aptos.transaction.build.multiAgent({
     data: ShelbyBlobClient.createBatchRegisterBlobsPayload({
-      account: sponsorAccount.accountAddress,
+      account: storageAccount.accountAddress,
       blobs: input.blobs,
       encoding: input.encoding,
       expirationMicros: input.expirationMicros,
+      useSponsoredUsdVariant: true,
     }),
     options: {
       maxGasAmount: Number(PRIMEGATE_SPONSOR_MAX_GAS_AMOUNT),
     },
-    sender: sponsorAccount.accountAddress,
+    secondarySignerAddresses: [sponsorAccount.accountAddress],
+    sender: storageAccount.accountAddress,
+    withFeePayer: true,
   });
-  const senderAuthenticator = sponsorAccount.signTransactionWithAuthenticator(transaction);
+  transaction.feePayerAddress = sponsorAccount.accountAddress;
+  const senderAuthenticator = storageAccount.signTransactionWithAuthenticator(transaction);
+  const sponsorAuthenticator = sponsorAccount.signTransactionWithAuthenticator(transaction);
 
-  return aptos.transaction.submit.simple({
+  return aptos.transaction.submit.multiAgent({
+    additionalSignersAuthenticators: [sponsorAuthenticator],
+    feePayerAuthenticator: sponsorAuthenticator,
     senderAuthenticator,
     transaction,
   });
@@ -660,6 +718,7 @@ export async function submitServerOwnedShelbyCommit(
   validateServerOwnedShelbyCommit(input);
   await assertSponsorFunding();
   const sponsorAccount = parseSponsorAccount();
+  const storageAccount = assertManagedStorageAccount(input);
   const aptos = createPrimeGateShelbyAptosClient();
   const transaction = await aptos.transaction.build.simple({
     data: ShelbyBlobClient.createCommitObjectPayload({
@@ -674,11 +733,15 @@ export async function submitServerOwnedShelbyCommit(
     options: {
       maxGasAmount: Number(PRIMEGATE_SPONSOR_MAX_GAS_AMOUNT),
     },
-    sender: sponsorAccount.accountAddress,
+    sender: storageAccount.accountAddress,
+    withFeePayer: true,
   });
-  const senderAuthenticator = sponsorAccount.signTransactionWithAuthenticator(transaction);
+  transaction.feePayerAddress = sponsorAccount.accountAddress;
+  const senderAuthenticator = storageAccount.signTransactionWithAuthenticator(transaction);
+  const sponsorAuthenticator = sponsorAccount.signTransactionWithAuthenticator(transaction);
 
   return aptos.transaction.submit.simple({
+    feePayerAuthenticator: sponsorAuthenticator,
     senderAuthenticator,
     transaction,
   });

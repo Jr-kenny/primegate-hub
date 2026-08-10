@@ -167,6 +167,7 @@ async function submitSponsoredTransaction(request: Request) {
         expectedBlobNames: [claims.assetBlobName, claims.manifestBlobName],
         expirationMicros: body.expirationMicros,
         operation: "shelby-registration-v2",
+        storageAccount: claims.storageAccount,
         walletAddress: authenticated.walletAddress,
       };
     } else if (body.operation === "shelby-commit-v2") {
@@ -193,6 +194,7 @@ async function submitSponsoredTransaction(request: Request) {
       serviceBody = {
         blobName: body.blobName,
         operation: "shelby-commit-v2",
+        storageAccount: claims.storageAccount,
         storageProviderAcks: body.storageProviderAcks,
         uid: body.uid,
         walletAddress: authenticated.walletAddress,

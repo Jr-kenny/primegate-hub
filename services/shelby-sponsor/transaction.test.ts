@@ -22,6 +22,7 @@ import {
   validateSponsoredShelbyTransaction,
   validateServerOwnedShelbyCommit,
   validateServerOwnedShelbyRegistration,
+  getManagedStorageAccountAddress,
 } from "./transaction.js";
 
 function buildSponsoredTransaction() {
@@ -210,6 +211,11 @@ describe("PrimeGate Shelby sponsor transaction validation", () => {
 
   it("accepts sponsor-owned registration and commit data", () => {
     const blobName = "primegate/content/test-id/asset.bin";
+    const walletAddress = Account.generate().accountAddress.toString();
+    const sponsor = Account.generate();
+    process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY = sponsor.privateKey.toString();
+    process.env.PRIMEGATE_SHELBY_SPONSOR_ADDRESS = sponsor.accountAddress.toString();
+    const storageAccount = getManagedStorageAccountAddress(walletAddress);
 
     expect(() =>
       validateServerOwnedShelbyRegistration({
@@ -223,7 +229,8 @@ describe("PrimeGate Shelby sponsor transaction validation", () => {
         expectedBlobNames: [blobName],
         expirationMicros: Date.now() * 1000 + 86_400_000_000,
         operation: "shelby-registration-v2",
-        walletAddress: Account.generate().accountAddress.toString(),
+        storageAccount,
+        walletAddress,
       }),
     ).not.toThrow();
 
@@ -231,10 +238,27 @@ describe("PrimeGate Shelby sponsor transaction validation", () => {
       validateServerOwnedShelbyCommit({
         blobName,
         operation: "shelby-commit-v2",
+        storageAccount,
         storageProviderAcks: [{ signature: `0x${"22".repeat(64)}`, slot: 0 }],
         uid: "1",
-        walletAddress: Account.generate().accountAddress.toString(),
+        walletAddress,
       }),
     ).not.toThrow();
+  });
+
+  it("assigns stable and isolated managed storage accounts", () => {
+    const sponsor = Account.generate();
+    const publisher = Account.generate();
+    const otherPublisher = Account.generate();
+    process.env.PRIMEGATE_SHELBY_SPONSOR_PRIVATE_KEY = sponsor.privateKey.toString();
+    process.env.PRIMEGATE_SHELBY_SPONSOR_ADDRESS = sponsor.accountAddress.toString();
+
+    const first = getManagedStorageAccountAddress(publisher.accountAddress.toString());
+    const repeated = getManagedStorageAccountAddress(publisher.accountAddress.toString());
+    const other = getManagedStorageAccountAddress(otherPublisher.accountAddress.toString());
+
+    expect(first).toBe(repeated);
+    expect(first).not.toBe(other);
+    expect(first).not.toBe(sponsor.accountAddress.toStringLong());
   });
 });

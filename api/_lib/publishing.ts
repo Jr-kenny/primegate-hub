@@ -170,13 +170,31 @@ function normalizeWalletAddress(address: string) {
   return AccountAddress.from(address).toStringLong().toLowerCase();
 }
 
-function getPrimeGateStorageAccount() {
-  const address = readPrimeGateEnvValue(process.env.PRIMEGATE_SHELBY_SPONSOR_ADDRESS);
-  if (!address) {
-    throw new Error("PRIMEGATE_SHELBY_SPONSOR_ADDRESS is not configured.");
+async function getPrimeGateStorageAccount(walletAddress: string) {
+  const serviceUrl = readPrimeGateEnvValue(process.env.PRIMEGATE_SPONSOR_SERVICE_URL).replace(/\/$/, "");
+  const serviceToken = readPrimeGateEnvValue(process.env.PRIMEGATE_SPONSOR_SERVICE_TOKEN);
+  if (!serviceUrl || !serviceToken) {
+    throw new Error("The PrimeGate sponsor service is not configured.");
   }
 
-  return normalizeWalletAddress(address);
+  const response = await fetch(`${serviceUrl}/storage-account`, {
+    body: JSON.stringify({ walletAddress }),
+    headers: {
+      "Content-Type": "application/json",
+      "X-PrimeGate-Sponsor-Token": serviceToken,
+    },
+    method: "POST",
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | { error?: string; storageAccount?: string }
+    | null;
+
+  if (!response.ok || !payload?.storageAccount) {
+    throw new Error(payload?.error ?? "The PrimeGate sponsor service could not assign storage.");
+  }
+
+  return normalizeWalletAddress(payload.storageAccount);
 }
 
 function signPublishValue(value: string) {
@@ -490,6 +508,7 @@ export async function createPublishIntent(ownerAddress: string, input: unknown) 
     releaseVersion: normalizePrimeGateReleaseVersion(parsedInput.releaseVersion),
   };
   const normalizedOwnerAddress = normalizeWalletAddress(ownerAddress);
+  const storageAccount = await getPrimeGateStorageAccount(normalizedOwnerAddress);
   const issuedAt = Date.now();
   const id = randomUUID();
   const createdAt = new Date(issuedAt).toISOString();
@@ -511,7 +530,7 @@ export async function createPublishIntent(ownerAddress: string, input: unknown) 
     id,
     manifestBlobName: `primegate/content/${id}/manifest.bin`,
     ownerAddress: normalizedOwnerAddress,
-    storageAccount: getPrimeGateStorageAccount(),
+    storageAccount,
   });
 
   return {
